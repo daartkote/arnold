@@ -92,22 +92,40 @@ export default function VoicePanel({ agentId, pending }: Props) {
     <div className="card voice">
       <div className="voice-head">
         <div className="label">Voice</div>
-        <div className="controls">
+        <span className="chip">
           <span className={`dot ${connected ? (conversation.isSpeaking ? 'speaking' : muted ? 'muted' : 'on') : 'off'}`} />
-          <span className="muted">{connected ? (conversation.isSpeaking ? 'speaking' : muted ? 'mic off' : 'listening') : conversation.status}</span>
-          {connected && (
-            <label className="toggle muted">
-              <input type="checkbox" checked={pushToTalk} onChange={e => setPushToTalk(e.target.checked)} /> push-to-talk
-            </label>
-          )}
+          {connected ? (conversation.isSpeaking ? 'speaking' : muted ? 'mic off' : 'listening') : conversation.status}
+        </span>
+      </div>
+      <div className="voice-top">
+        <button
+          className={`mic ${connected ? (muted ? 'live' : 'hot') : ''}`}
+          onClick={connected ? () => conversation.endSession() : start}
+          disabled={conversation.status === 'connecting'}
+          title={connected ? 'Hang up' : 'Start talking'}
+        >
           {connected ? (
-            <button onClick={() => conversation.endSession()}>Hang up</button>
+            <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z" /></svg>
           ) : (
-            <button className="primary" onClick={start} disabled={conversation.status === 'connecting'}>Start talking</button>
+            <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" /></svg>
           )}
+        </button>
+        <div className="voice-info">
+          <h2>{connected ? (muted ? 'Connected, mic off' : conversation.isSpeaking ? 'VoiceCode is speaking' : 'Listening…') : 'Start talking'}</h2>
+          <p>{connected ? (pushToTalk ? 'Hold Space or the button below while you speak. Tap the circle to hang up.' : 'Open mic. Tap the circle to hang up.') : 'Tap the mic and describe what you want to build.'}</p>
+          <div className={`wave ${connected && !muted ? 'active' : ''}`}>
+            {[6, 12, 20, 9, 16, 24, 11, 6, 14, 20, 8, 12, 5].map((h, i) => <i key={i} style={{ height: h }} />)}
+          </div>
         </div>
       </div>
       <VoiceSettings />
+      {connected && (
+        <div className="settings" style={{ marginTop: 10, paddingTop: 0, borderTop: 0 }}>
+          <label className="tog">
+            <input type="checkbox" checked={pushToTalk} onChange={e => setPushToTalk(e.target.checked)} /><span className="switch" /> Push-to-talk
+          </label>
+        </div>
+      )}
       {error && <p className="error">{error}</p>}
       {connected && pushToTalk && iframeFocused && (
         <p className="error">The project preview has keyboard focus. Click here or hold the button below, Space will not work until you do.</p>
@@ -124,15 +142,17 @@ export default function VoicePanel({ agentId, pending }: Props) {
           {holding ? 'Listening… release to send' : 'Hold to talk (or hold Space)'}
         </button>
       )}
-      <ul className="transcript">
-        {lines.length === 0 && <li className="muted">Say something like “add a search box to the tasks” or “by the way, how are tasks stored?”</li>}
-        {lines.map(l => (
-          <li key={l.id} className={l.role}>
-            <span className="who">{l.role === 'user' ? 'you' : l.role === 'agent' ? 'voicecode' : '·'}</span>
-            <span>{l.text}</span>
-          </li>
-        ))}
-      </ul>
+      {lines.length === 0 && <p className="hint">Try: <q>add a search box to the tasks</q> or <q>by the way, how are tasks stored?</q></p>}
+      {lines.length > 0 && (
+        <ul className="transcript">
+          {lines.map(l => (
+            <li key={l.id} className={l.role}>
+              <span className="who">{l.role === 'user' ? 'you' : l.role === 'agent' ? 'vc' : '·'}</span>
+              <span>{l.text}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

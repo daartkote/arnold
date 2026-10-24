@@ -34,14 +34,14 @@ export default function VoiceSettings() {
 
   return (
     <div className="settings">
-      <label className="toggle muted" title="Execute no actions; the agent only says what it would do">
-        <input type="checkbox" checked={s.dryRun} disabled={busy} onChange={e => update({ dryRun: e.target.checked })} /> dry run
+      <label className="tog" title="Execute no actions; the agent only says what it would do">
+        <input type="checkbox" checked={s.dryRun} disabled={busy} onChange={e => update({ dryRun: e.target.checked })} /><span className="switch" /> Dry run
       </label>
-      <label className="toggle muted" title="ElevenLabs sends the transcript to the LLM before the turn is confirmed; faster, but produces duplicate requests">
-        <input type="checkbox" checked={s.speculativeTurn} disabled={busy} onChange={e => update({ speculativeTurn: e.target.checked })} /> speculative turn
+      <label className="tog" title="ElevenLabs sends the transcript to the LLM before the turn is confirmed; faster, but produces duplicate requests">
+        <input type="checkbox" checked={s.speculativeTurn} disabled={busy} onChange={e => update({ speculativeTurn: e.target.checked })} /><span className="switch" /> Speculative turn
       </label>
-      <label className="toggle muted" title="Seconds of silence before ElevenLabs nudges the conversation; off = agent never speaks unprompted">
-        nudge {timeout < 0 ? 'off' : `${timeout}s`}
+      <label className="tog range" title="Seconds of silence before ElevenLabs nudges the conversation; off = agent never speaks unprompted">
+        Nudge <span className="mono muted">{timeout < 0 ? 'off' : `${timeout}s`}</span>
         <input type="range" min={0} max={20} step={1} value={timeout < 0 ? 0 : timeout} disabled={busy}
           onChange={e => setTimeoutLocal(Number(e.target.value) === 0 ? -1 : Number(e.target.value))}
           onMouseUp={() => update({ turnTimeout: timeout })}

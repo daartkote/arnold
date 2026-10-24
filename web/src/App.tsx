@@ -64,19 +64,22 @@ export default function App() {
   return (
     <div className="shell">
       <header>
-        <div>
-          <h1>VoiceCode</h1>
-          <p className="muted">
-            provider <b>{state.provider}</b> · <span title={state.projectDir}>{state.projectDir.split('/').slice(-1)[0]}</span>
-            {state.threadId && <> · thread <code>{state.threadId.slice(0, 8)}</code></>}
-          </p>
+        <div className="brand">
+          <div className="logo"><div><span style={{ height: 10 }} /><span style={{ height: 18 }} /><span style={{ height: 13 }} /><span style={{ height: 7 }} /></div></div>
+          <div>
+            <h1>VoiceCode</h1>
+            <div className="meta">
+              provider <span className="chip">{state.provider}</span> · <span className="mono" title={state.projectDir}>{state.projectDir.split('/').slice(-1)[0]}</span>
+              {state.threadId && <> · thread <span className="mono">{state.threadId.slice(0, 8)}</span></>}
+            </div>
+          </div>
         </div>
         <div className="controls">
-          <span className={`dot ${connected ? 'on' : 'off'}`} />
+          <span className="chip"><span className={`dot ${connected ? 'on' : 'off'}`} /> {connected ? 'Server online' : 'Server offline'}</span>
           {state.paused ? (
-            <button className="primary" onClick={() => api.resume()}>Resume queue</button>
+            <button className="primary" onClick={() => api.resume()}>▶ Resume queue</button>
           ) : (
-            <button className="danger" onClick={() => api.stop()} disabled={!canStop}>Stop</button>
+            <button className="danger" onClick={() => api.stop()} disabled={!canStop}>■ Stop</button>
           )}
         </div>
       </header>
@@ -90,25 +93,24 @@ export default function App() {
         <section className="col">
           <form onSubmit={submit} className="row">
             <input value={text} onChange={e => setText(e.target.value)} placeholder="Type a coding task or just say it…" />
-            <button type="submit">Queue</button>
+            <button type="submit">Queue ↵</button>
           </form>
 
-          <div className="card active">
-            <div className="label">Active task</div>
+          <div className="card">
+            <div className="label">Active task {active ? <span className={`status ${active.status}`}>{statusLabel[active.status]}</span> : <span className="status">{state.paused ? 'Paused' : 'Idle'}</span>}</div>
             {active ? (
               <>
-                <div className={`status ${active.status}`}>{statusLabel[active.status]}</div>
                 <p className="task-text">{active.text}</p>
                 <p className="muted">started {active.startedAt ? fmt(active.startedAt) : ''}</p>
               </>
             ) : (
-              <p className="muted">{state.paused ? 'Queue paused' : 'Idle'}</p>
+              <div className="empty"><span>⚡</span>{state.paused ? 'Queue paused. Press Resume to continue.' : 'No task running. Say or type something to start.'}</div>
             )}
           </div>
 
           <div className="card">
-            <div className="label">Queue · {queued.length}</div>
-            {queued.length === 0 && <p className="muted">Nothing queued</p>}
+            <div className="label">Queue <span className="count">{queued.length}</span></div>
+            {queued.length === 0 && <div className="empty"><span>☰</span>Nothing queued</div>}
             <ul className="list">
               {queued.map((t, i) => (
                 <li key={t.id}>
@@ -122,8 +124,8 @@ export default function App() {
           </div>
 
           <div className="card">
-            <div className="label">History</div>
-            {history.length === 0 && <p className="muted">No finished tasks yet</p>}
+            <div className="label">History <span className="count">{history.length}</span></div>
+            {history.length === 0 && <div className="empty"><span>✓</span>No finished tasks yet</div>}
             <ul className="list">
               {history.map(t => (
                 <li key={t.id} className="history">
@@ -168,6 +170,7 @@ export default function App() {
           <div className="card feed">
             <div className="label">Codex events</div>
             <ul className="events">
+              {state.events.length === 0 && <li><span className="mono">{fmt(Date.now())}</span><span>waiting for events…</span></li>}
               {state.events.slice(-60).reverse().map(e => (
                 <li key={e.id}>
                   <span className="muted mono">{fmt(e.ts)}</span>

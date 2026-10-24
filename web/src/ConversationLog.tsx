@@ -22,8 +22,8 @@ export default function ConversationLog({ entries }: { entries: TranscriptEntry[
 
   return (
     <div className="card log">
-      <div className="label">Conversation log · {entries.length}</div>
-      {entries.length === 0 && <p className="muted">Nothing yet. Everything Gemma hears, says and sends to Codex lands here.</p>}
+      <div className="label">Conversation log <span className="count">{entries.length}</span></div>
+      {entries.length === 0 && <div className="empty"><span>💬</span>Nothing yet. Everything Gemma hears, says and sends to Codex lands here.</div>}
       <ul className="translog">
         {entries.slice(-80).map(e => {
           const actions = (e.meta?.actions as { type: string }[] | undefined)?.map(a => a.type).filter(t => t !== 'get_status');
