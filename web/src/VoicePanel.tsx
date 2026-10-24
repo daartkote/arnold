@@ -11,7 +11,9 @@ interface Props {
 export default function VoicePanel({ agentId, pending }: Props) {
   const [error, setError] = useState<string | null>(null);
   const sentAt = useRef(new Map<string, number>());
+  const lastRelay = useRef<{ at: number; text: string } | null>(null);
   const RESEND_MS = 6000;
+  const speechMs = (text: string) => 1500 + text.split(/\s+/).length * 420;
 
   const conversation = useConversation({
     onError: (e: unknown) => setError(typeof e === 'string' ? e : (e as Error)?.message ?? 'voice error'),
@@ -44,9 +46,12 @@ export default function VoicePanel({ agentId, pending }: Props) {
     const tick = () => {
       if (holding || conversation.isSpeaking) return;
       const now = Date.now();
-      const next = pending.find(n => now - (sentAt.current.get(n.id) ?? 0) > RESEND_MS);
+      const prev = lastRelay.current;
+      if (prev && now - prev.at < speechMs(prev.text)) return;
+      const next = pending.find(n => now - (sentAt.current.get(n.id) ?? 0) > Math.max(RESEND_MS, speechMs(n.text)));
       if (!next) return;
       sentAt.current.set(next.id, now);
+      lastRelay.current = { at: now, text: next.text };
       conversation.sendUserMessage(`[notification] ${next.text}`);
     };
     tick();
