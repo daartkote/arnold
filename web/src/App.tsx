@@ -22,8 +22,6 @@ function fmt(ts: number) {
 
 export default function App() {
   const { state, connected } = useAppState();
-  const [text, setText] = useState('');
-  const [question, setQuestion] = useState('');
   const [agentId, setAgentId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -46,20 +44,6 @@ export default function App() {
   const history = state.tasks.filter(t => !['queued', 'running', 'cancelling'].includes(t.status)).slice(-8).reverse();
   const canStop = Boolean(active) || !state.paused;
   const finishedCount = state.tasks.filter(t => t.finishedAt).length;
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!text.trim()) return;
-    api.enqueue(text.trim());
-    setText('');
-  };
-
-  const ask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!question.trim()) return;
-    api.research(question.trim());
-    setQuestion('');
-  };
 
   return (
     <div className="shell">
@@ -91,11 +75,6 @@ export default function App() {
         </section>
 
         <section className="col">
-          <form onSubmit={submit} className="row">
-            <input value={text} onChange={e => setText(e.target.value)} placeholder="Type a coding task or just say it…" />
-            <button type="submit">Queue ↵</button>
-          </form>
-
           <div className="card">
             <div className="label">Active task {active ? <span className={`status ${active.status}`}>{statusLabel[active.status]}</span> : <span className="status">{state.paused ? 'Paused' : 'Idle'}</span>}</div>
             {active ? (
@@ -139,14 +118,12 @@ export default function App() {
               ))}
             </ul>
           </div>
+
+          <ConversationLog entries={state.transcript} />
         </section>
 
         <section className="col">
           <VoicePanel agentId={agentId} pending={state.notifications} />
-          <form onSubmit={ask} className="row">
-            <input value={question} onChange={e => setQuestion(e.target.value)} placeholder="By the way… ask about the project (read-only)" />
-            <button type="submit">Ask</button>
-          </form>
 
           {state.research.length > 0 && (
             <div className="card">
@@ -164,8 +141,6 @@ export default function App() {
               </ul>
             </div>
           )}
-
-          <ConversationLog entries={state.transcript} />
 
           <div className="card feed">
             <div className="label">Codex events</div>
