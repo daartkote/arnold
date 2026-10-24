@@ -30,6 +30,23 @@ export default function VoicePanel({ agentId, pending }: Props) {
   });
 
   const connected = conversation.status === 'connected';
+  const [pushToTalk, setPushToTalk] = useState(true);
+  const [holding, setHolding] = useState(false);
+  const muted = connected && pushToTalk && !holding;
+
+  useEffect(() => {
+    conversation.setMuted(muted);
+  }, [muted, conversation]);
+
+  useEffect(() => {
+    if (!connected || !pushToTalk) return;
+    const isTyping = (e: KeyboardEvent) => ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
+    const down = (e: KeyboardEvent) => { if (e.code === 'Space' && !isTyping(e)) { e.preventDefault(); setHolding(true); } };
+    const up = (e: KeyboardEvent) => { if (e.code === 'Space' && !isTyping(e)) { e.preventDefault(); setHolding(false); } };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, [connected, pushToTalk]);
 
   useEffect(() => {
     if (!connected) return;
@@ -58,8 +75,13 @@ export default function VoicePanel({ agentId, pending }: Props) {
       <div className="voice-head">
         <div className="label">Voice</div>
         <div className="controls">
-          <span className={`dot ${connected ? (conversation.isSpeaking ? 'speaking' : 'on') : 'off'}`} />
-          <span className="muted">{connected ? (conversation.isSpeaking ? 'speaking' : 'listening') : conversation.status}</span>
+          <span className={`dot ${connected ? (conversation.isSpeaking ? 'speaking' : muted ? 'muted' : 'on') : 'off'}`} />
+          <span className="muted">{connected ? (conversation.isSpeaking ? 'speaking' : muted ? 'mic off' : 'listening') : conversation.status}</span>
+          {connected && (
+            <label className="toggle muted">
+              <input type="checkbox" checked={pushToTalk} onChange={e => setPushToTalk(e.target.checked)} /> push-to-talk
+            </label>
+          )}
           {connected ? (
             <button onClick={() => conversation.endSession()}>Hang up</button>
           ) : (
@@ -68,6 +90,18 @@ export default function VoicePanel({ agentId, pending }: Props) {
         </div>
       </div>
       {error && <p className="error">{error}</p>}
+      {connected && pushToTalk && (
+        <button
+          className={`ptt ${holding ? 'active' : ''}`}
+          onMouseDown={() => setHolding(true)}
+          onMouseUp={() => setHolding(false)}
+          onMouseLeave={() => setHolding(false)}
+          onTouchStart={e => { e.preventDefault(); setHolding(true); }}
+          onTouchEnd={() => setHolding(false)}
+        >
+          {holding ? 'Listening… release to send' : 'Hold to talk (or hold Space)'}
+        </button>
+      )}
       <ul className="transcript">
         {lines.length === 0 && <li className="muted">Say something like “add a search box to the tasks” or “by the way, how are tasks stored?”</li>}
         {lines.map(l => (

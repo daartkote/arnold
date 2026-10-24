@@ -67,3 +67,7 @@ button.ghost { background: transparent; border-color: transparent; color: var(--
 .transcript .who { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; width: 72px; flex: none; padding-top: 3px; }
 .transcript li.agent span:last-child { color: var(--accent); }
 .transcript li.system { color: var(--muted); font-size: 12px; }
+.dot.muted { background: var(--warn); }
+.toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.ptt { width: 100%; padding: 16px; margin: 6px 0 10px; font-weight: 600; border-radius: 12px; background: var(--panel-2); border: 1px dashed var(--border); user-select: none; -webkit-user-select: none; }
+.ptt.active { background: var(--ok); color: #0b1a10; border-style: solid; border-color: transparent; }
