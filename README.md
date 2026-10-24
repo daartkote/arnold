@@ -36,6 +36,11 @@ Hackathon halls are loud and microphones are cheap. VoiceCode ships with the fix
 
 ## Architecture
 
+![VoiceCode architecture](docs/architecture.svg)
+
+<details>
+<summary>Text version</summary>
+
 ```
 ┌──────────────────────────────┐       audio (WebRTC)       ┌──────────────────────────────┐
 │  Browser · React UI          │ ◄────────────────────────► │  ElevenLabs Conversational   │
@@ -74,6 +79,8 @@ Hackathon halls are loud and microphones are cheap. VoiceCode ships with the fix
                                               ▼
                                    Project directory (TaskFlow demo app)
 ```
+
+</details>
 
 ## One round trip
 
