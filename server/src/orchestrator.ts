@@ -132,6 +132,7 @@ export class Orchestrator extends EventEmitter {
       next.summary = result.summary;
       next.commandsRun = result.commandsRun;
       next.commandsFailed = result.commandsFailed;
+      next.files = result.files;
       const wasCancelling = (next.status as Task['status']) === 'cancelling';
       if (wasCancelling || !result.completed) next.status = 'interrupted';
       else next.status = result.commandsFailed > 0 ? 'failed' : 'done';

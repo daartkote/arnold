@@ -8,17 +8,19 @@ interface Verdict {
   speech?: string;
 }
 
-const RULES = `You review a batch of raw events from a coding agent working on a developer's project and decide what the developer, who is listening over a headset, should hear.
+const RULES = `You watch raw events from a coding agent (Codex) working on a software project and decide what the developer, a software engineer listening over a headset, should hear right now.
 Respond ONLY with JSON: {"decision":"SKIP"|"REMEMBER"|"SPEAK","note":string,"speech":string}
-- SKIP: routine progress (reading files, reasoning, successful intermediate commands). Most batches are SKIP.
-- REMEMBER: a fact worth keeping for later questions (a design decision, a file that was created, a limitation). Put it in "note", one sentence.
-- SPEAK: only for things the developer needs now: the task finished (say what was done and whether build/tests actually ran and their exit codes), a command failed in a way that blocks progress, or the agent is asking a question. "speech" is 1-2 spoken sentences, factual, no markdown. Never say tests or build passed unless an exit code 0 for that command is in the events.`;
+- SKIP: pure noise (listing directories, grepping, re-reading files, a command that only inspects state).
+- REMEMBER: a fact worth keeping for later questions (a design decision, a data format, a limitation, a file that now owns some logic). "note" is one technical sentence.
+- SPEAK: a milestone the engineer wants to hear while it happens: Codex announced its plan or approach; it edited files (say which and what for); it started or finished a build/test run (with exit code); a command failed in a blocking way; it asks a question; the task finished.
+"speech" is 1-3 spoken sentences in the voice of a senior engineer narrating their own work: concrete file names, components, types, commands, exit codes. No markdown. Never say a build or tests passed unless an exit code 0 for that exact command is in the events. For a finished task, summarize what changed, in which files, and what was verified.`;
 
 export class EventAnalyst {
   private buffer: AgentEvent[] = [];
   private timer: NodeJS.Timeout | null = null;
-  private spokenFor = new Set<string>();
+  private lastSpokeAt = new Map<string, number>();
   readonly memory: string[] = [];
+  static readonly COOLDOWN_MS = 25000;
 
   constructor(private orchestrator: Orchestrator) {
     orchestrator.on('event', (e: AgentEvent) => this.onEvent(e));
@@ -46,7 +48,7 @@ export class EventAnalyst {
     const taskText = finished?.text ?? this.orchestrator.getState().tasks.find(t => t.id === taskId)?.text ?? '';
     const lines = batch.map(e => `${e.type}: ${e.summary}`).join('\n');
     const outcome = finished
-      ? `\nTASK FINISHED with status "${finished.status}". Commands run: ${finished.commandsRun ?? 0}, failed: ${finished.commandsFailed ?? 0}. Agent's final message: ${finished.summary ?? ''}`
+      ? `\nTASK FINISHED with status "${finished.status}". Files changed: ${finished.files?.join(', ') || 'none recorded'}. Commands run: ${finished.commandsRun ?? 0}, failed: ${finished.commandsFailed ?? 0}. Agent's final message: ${(finished.summary ?? '').slice(0, 900)}`
       : '';
     const prompt = `${RULES}\n\nTask: ${taskText}\nEvents:\n${lines || '(none)'}${outcome}\n\nJSON only.`;
     try {
@@ -61,11 +63,12 @@ export class EventAnalyst {
         return typeof item?.exit_code === 'number' && item.exit_code !== 0;
       });
       if (v.decision === 'SPEAK' && v.speech) {
-        if (!finished && (!hasFailure || this.spokenFor.has(taskId))) {
+        const since = Date.now() - (this.lastSpokeAt.get(taskId) ?? 0);
+        if (!finished && !hasFailure && since < EventAnalyst.COOLDOWN_MS) {
           if (v.note) this.memory.push(v.note);
           return;
         }
-        this.spokenFor.add(taskId);
+        this.lastSpokeAt.set(taskId, Date.now());
         this.orchestrator.notify(taskId, v.speech);
       }
       if (finished && finished.status !== 'done' && v.decision !== 'SPEAK') {

@@ -20,6 +20,7 @@ export interface Task {
   summary?: string;
   commandsRun?: number;
   commandsFailed?: number;
+  files?: string[];
   announcedAt?: number;
 }
 

@@ -49,14 +49,14 @@ export default function VoicePanel({ agentId, pending }: Props) {
   }, [connected, pushToTalk]);
 
   useEffect(() => {
-    if (!connected) return;
+    if (!connected || holding) return;
     for (const n of pending) {
       if (delivered.current.has(n.id)) continue;
       delivered.current.add(n.id);
       conversation.sendUserMessage(`[notification] ${n.text}`);
       api.ack(n.id);
     }
-  }, [pending, connected, conversation]);
+  }, [pending, connected, conversation, holding]);
 
   const start = async () => {
     if (!agentId) return setError('ELEVENLABS_AGENT_ID is not configured on the server');

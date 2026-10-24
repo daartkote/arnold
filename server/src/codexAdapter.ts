@@ -12,7 +12,12 @@ interface CodexItem {
   status?: string;
   exit_code?: number;
   aggregated_output?: string;
-  changes?: unknown[];
+  changes?: { path?: string; kind?: string }[];
+}
+
+function shortPath(p: string, projectDir?: string) {
+  const rel = projectDir && p.startsWith(projectDir) ? p.slice(projectDir.length + 1) : p;
+  return rel.split('/').slice(-2).join('/');
 }
 
 interface CodexEvent {
@@ -56,7 +61,7 @@ function killTree(child: ChildProcess) {
   }, 3000);
 }
 
-function summarize(ev: CodexEvent): string {
+function summarize(ev: CodexEvent, projectDir?: string): string {
   const it = ev.item;
   switch (ev.type) {
     case 'thread.started': return `thread ${ev.thread_id}`;
@@ -68,12 +73,15 @@ function summarize(ev: CodexEvent): string {
     case 'item.completed': {
       if (!it) return ev.type;
       if (it.type === 'command_execution') {
-        const cmd = (it.command ?? '').replace(/^\/bin\/zsh -lc\s*/, '').slice(0, 120);
-        return ev.type === 'item.started' ? `$ ${cmd}` : `$ ${cmd} → exit ${it.exit_code ?? '?'}`;
+        const cmd = (it.command ?? '').replace(/^\/bin\/zsh -lc\s*/, '').replace(/^['"]|['"]$/g, '').slice(0, 120);
+        if (ev.type === 'item.started') return `$ ${cmd}`;
+        const failed = (it.exit_code ?? 0) !== 0;
+        const tail = failed ? ` :: ${(it.aggregated_output ?? '').trim().split('\n').slice(-3).join(' | ').slice(0, 200)}` : '';
+        return `$ ${cmd} → exit ${it.exit_code ?? '?'}${tail}`;
       }
       if (it.type === 'agent_message') return (it.text ?? '').slice(0, 300);
       if (it.type === 'reasoning') return (it.text ?? '').slice(0, 160);
-      if (it.type === 'file_change') return `file change (${it.changes?.length ?? 0} files)`;
+      if (it.type === 'file_change') return `${ev.type === 'item.started' ? 'editing' : 'edited'} ${(it.changes ?? []).map(c => `${shortPath(c.path ?? '', projectDir)}${c.kind && c.kind !== 'update' ? ` (${c.kind})` : ''}`).join(', ')}`;
       return it.type ?? ev.type;
     }
     default: return ev.type;
@@ -122,6 +130,7 @@ export class CodexAdapter implements AgentAdapter {
     let commandsFailed = 0;
     let completed = false;
     let stderr = '';
+    const files = new Set<string>();
 
     this.readLines(child, line => {
       let ev: CodexEvent;
@@ -133,8 +142,9 @@ export class CodexAdapter implements AgentAdapter {
         if ((ev.item.exit_code ?? 0) !== 0) commandsFailed++;
       }
       if (ev.type === 'item.completed' && ev.item?.type === 'agent_message') lastMessage = ev.item.text ?? '';
+      if (ev.type === 'item.completed' && ev.item?.type === 'file_change') for (const c of ev.item.changes ?? []) if (c.path) files.add(shortPath(c.path, ctx.projectDir));
       const type = ev.item?.type ? `${ev.type}:${ev.item.type}` : ev.type;
-      onEvent({ ts: Date.now(), type, summary: redact(summarize(ev)), raw: ev });
+      onEvent({ ts: Date.now(), type, summary: redact(summarize(ev, ctx.projectDir)), raw: ev });
     }, s => { stderr += s; });
 
     const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolve => {
@@ -147,12 +157,12 @@ export class CodexAdapter implements AgentAdapter {
     if (relevantErr) onEvent({ ts: Date.now(), type: 'stderr', summary: redact(relevantErr.slice(0, 300)) });
 
     if (this.stopping) {
-      return { threadId, summary: 'Interrupted by user', commandsRun, commandsFailed, completed: false };
+      return { threadId, summary: 'Interrupted by user', commandsRun, commandsFailed, files: [...files], completed: false };
     }
     if (!completed && exit.code !== 0) {
       throw new Error(`codex exited with code ${exit.code}${relevantErr ? `: ${relevantErr.slice(0, 200)}` : ''}`);
     }
-    return { threadId, summary: redact(lastMessage || 'Turn completed without a final message'), commandsRun, commandsFailed, completed };
+    return { threadId, summary: redact(lastMessage || 'Turn completed without a final message'), commandsRun, commandsFailed, files: [...files], completed };
   }
 
   async stop(): Promise<void> {

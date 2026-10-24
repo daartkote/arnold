@@ -11,12 +11,12 @@ export class FakeAdapter implements AgentAdapter {
     const threadId = ctx.threadId ?? `fake-${Date.now()}`;
     onEvent({ ts: Date.now(), type: 'thread.started', summary: `thread ${threadId}` });
     for (let i = 1; i <= 5; i++) {
-      if (this.aborted) return { threadId, summary: 'interrupted', commandsRun: i - 1, commandsFailed: 0, completed: false };
+      if (this.aborted) return { threadId, summary: 'interrupted', commandsRun: i - 1, commandsFailed: 0, files: [], completed: false };
       await sleep(1500);
       onEvent({ ts: Date.now(), type: 'command_execution', summary: `step ${i}/5 for "${prompt.slice(0, 30)}"` });
     }
     onEvent({ ts: Date.now(), type: 'turn.completed', summary: 'turn completed' });
-    return { threadId, summary: `Pretended to do: ${prompt}`, commandsRun: 5, commandsFailed: 0, completed: true };
+    return { threadId, summary: `Pretended to do: ${prompt}`, commandsRun: 5, commandsFailed: 0, files: ['src/App.tsx'], completed: true };
   }
 
   async stop() {

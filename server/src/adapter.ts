@@ -11,6 +11,7 @@ export interface RunResult {
   summary: string;
   commandsRun: number;
   commandsFailed: number;
+  files: string[];
   completed: boolean;
 }
 
