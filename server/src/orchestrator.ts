@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid';
 import type { AgentEvent, AppState, Notification, ResearchQuery, Task, TaskSource, TranscriptEntry, TranscriptKind } from '../../shared/types.ts';
 import type { AgentAdapter } from './adapter.ts';
 import { EventLog } from './store.ts';
+import { verificationFor } from './verification.ts';
 
 const MAX_EVENTS = 200;
 const MAX_TRANSCRIPT = 300;
@@ -88,7 +89,8 @@ export class Orchestrator extends EventEmitter {
   }
 
   enqueue(text: string, source: TaskSource): Task {
-    const task: Task = { id: nanoid(8), text, status: 'queued', source, createdAt: Date.now() };
+    const hint = process.env.TASK_HINT ?? "When you are done, run the project's build (and tests if present) to verify, and state the exit code in your final message.";
+    const task: Task = { id: nanoid(8), text: source === 'voice' && hint ? `${text}\n\n${hint}` : text, status: 'queued', source, createdAt: Date.now() };
     this.state.tasks.push(task);
     this.log.append({ kind: 'task', task });
     this.transcript('codex_prompt', text, { taskId: task.id, source });
@@ -151,6 +153,7 @@ export class Orchestrator extends EventEmitter {
       next.commandsRun = result.commandsRun;
       next.commandsFailed = result.commandsFailed;
       next.files = result.files;
+      next.verification = verificationFor(this.state.events.filter(e => e.taskId === next.id));
       const wasCancelling = (next.status as Task['status']) === 'cancelling';
       if (wasCancelling || !result.completed) next.status = 'interrupted';
       else next.status = result.lastExitCode !== null && result.lastExitCode !== 0 ? 'failed' : 'done';

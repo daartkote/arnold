@@ -1,5 +1,6 @@
 import type { AppState, Task } from '../../shared/types.ts';
 import { llm as gemma, parseJsonObject } from './llm.ts';
+import { describeVerification } from './verification.ts';
 
 export type Action =
   | { type: 'enqueue_task'; text: string }
@@ -34,7 +35,7 @@ function liveActivity(state: AppState): string {
 
 function describeTask(t: Task): string {
   const files = t.files?.length ? ` files: ${t.files.join(', ')}.` : '';
-  return `${t.status}: "${t.text}" => ${(t.summary ?? '').slice(0, 600)}${files} (commands: ${t.commandsRun ?? 0}, failed: ${t.commandsFailed ?? 0})`;
+  return `${t.status}: "${t.text.split('\n')[0]}" => ${(t.summary ?? '').slice(0, 600)}${files} (verification: ${describeVerification(t.verification)}; commands: ${t.commandsRun ?? 0})`;
 }
 
 function describeState(state: AppState): string {
@@ -58,7 +59,7 @@ function describeState(state: AppState): string {
 const RULES = `You are VoiceCode, the voice of a coding agent (Codex) working on a software project, talking to a software engineer over a headset.
 Talk like a senior engineer pairing with a peer: concrete and technical. Name files, components, types, functions, commands and exit codes when the state has them. Never explain basics.
 2-4 spoken sentences, no markdown, no bullet lists, no code blocks. Short words, you are being read aloud.
-Ground everything in the state below. If Codex has not reported something, say you don't know yet. Never claim code was written, a build passed or tests ran unless an event or result below says so, with its exit code.
+Ground everything in the state below. If Codex has not reported something, say you don't know yet. Never claim a build passed or tests ran unless the "verification" field or a command event with exit code 0 says so. If verification says "build not run", say that the build was not run.
 When asked what is happening, narrate the live activity: what Codex just said it is doing, which files it edited, what command is running and whether it passed.
 
 You respond ONLY with one JSON object: {"speech": string, "actions": Action[]}

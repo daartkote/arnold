@@ -21,6 +21,7 @@ export interface Task {
   commandsRun?: number;
   commandsFailed?: number;
   files?: string[];
+  verification?: { build: 'passed' | 'failed' | 'not run'; tests: 'passed' | 'failed' | 'not run' };
   announcedAt?: number;
 }
 
