@@ -43,9 +43,18 @@ export class EventAnalyst {
     await this.flush('final', task);
   }
 
+  private deferred = false;
+
   private async flush(reason: string, finished?: Task) {
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
     if (!finished && this.buffer.some(e => e.type === 'turn.completed' || e.type === 'turn.failed')) return;
+    const last = this.buffer[this.buffer.length - 1];
+    if (!finished && !this.deferred && last?.type === 'item.completed:agent_message') {
+      this.deferred = true;
+      this.timer = setTimeout(() => void this.flush('deferred'), 3000);
+      return;
+    }
+    this.deferred = false;
     const batch = this.buffer.splice(0);
     if (!batch.length && !finished) return;
     const taskId = finished?.id ?? batch[0]?.taskId;

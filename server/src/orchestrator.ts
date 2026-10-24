@@ -93,7 +93,7 @@ export class Orchestrator extends EventEmitter {
   }
 
   enqueue(text: string, source: TaskSource): Task {
-    const hint = process.env.TASK_HINT ?? "When you are done, run the project's build (and tests if present) to verify, and state the exit code in your final message.";
+    const hint = process.env.TASK_HINT ?? "Before implementing: if there is a design decision this request leaves open (where a control goes, how data is entered or stored, what happens to existing data), do NOT guess. Stop and ask the user exactly one question as your final message, with no code changes. Otherwise implement, run the project's build (and tests if present) to verify, and state the exit code in your final message.";
     const task: Task = { id: nanoid(8), text: source === 'voice' && hint ? `${text}\n\n${hint}` : text, status: 'queued', source, createdAt: Date.now() };
     this.state.tasks.push(task);
     this.log.append({ kind: 'task', task });
