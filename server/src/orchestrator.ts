@@ -139,9 +139,11 @@ export class Orchestrator extends EventEmitter {
     try {
       q.answer = await this.adapter.research(question, this.state.projectDir);
       q.status = 'done';
+      this.notify(q.id, `About your question "${question.slice(0, 60)}": ${q.answer}`);
     } catch (err) {
       q.status = 'failed';
       q.answer = err instanceof Error ? err.message : String(err);
+      this.notify(q.id, `I couldn't look that up: ${q.answer.slice(0, 120)}`);
     }
     this.publish();
     return q;
