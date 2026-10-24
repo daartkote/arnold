@@ -54,23 +54,3 @@ export function describeVerification(v: Task['verification'] | undefined): strin
   if (v.tests !== 'not run') parts.push(`tests ${v.tests}`);
   return parts.join(', ');
 }
-
-export function enforceVerificationClaims(speech: string, v: Task['verification'] | undefined): string {
-  if (!v) return speech;
-  let out = speech;
-  if (v.tests === 'not run') {
-    out = out
-      .replace(/\b(build|builds)\s+and\s+(unit\s+|all\s+)?tests?\s+(passed|pass|succeeded|succeed)\b/gi, '$1 $3')
-      .replace(/\b(,?\s*and\s+)?(unit\s+|all\s+)?tests?\s+(all\s+)?(passed|pass|succeeded|succeed|are\s+green|green)\b/gi, '');
-  }
-  if (v.build === 'not run') {
-    out = out
-      .replace(/,?\s*(and\s+)?(the\s+)?(production\s+)?build\s+(succeeded|passed|is green|compiles?|completed|ran)(\s+successfully)?(\s+(with no errors|cleanly|with exit code 0|exit(ed)?\s+(code\s+)?0))?/gi, '')
-      .replace(/,?\s*(and\s+)?(npm run build|the build)\s+(exited|returned|exit code)\s+(code\s+)?0/gi, '')
-      .replace(/\s*\.\s*\./g, '.');
-    if (!/^\s*$/.test(out) && !/[.!?]$/.test(out.trim())) out = `${out.trim()}.`;
-    out = `${out.trim()} No build was run.`;
-  }
-  if (v.build === 'failed' && !/fail|exit(ed)?\s+(code\s+)?[1-9]/i.test(out)) out = `${out.trim()} The build failed.`;
-  return out.replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').replace(/,\s*\./g, '.').trim();
-}

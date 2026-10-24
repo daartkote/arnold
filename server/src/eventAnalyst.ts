@@ -1,16 +1,18 @@
 import type { AgentEvent, Task } from '../../shared/types.ts';
 import { llm as gemma, parseJsonObject } from './llm.ts';
 import type { Orchestrator } from './orchestrator.ts';
-import { batchHasVerificationFailure, batchWritesFiles, describeVerification, enforceVerificationClaims, filesWrittenIn } from './verification.ts';
+import { batchHasVerificationFailure, batchWritesFiles, describeVerification, filesWrittenIn } from './verification.ts';
 
 interface Verdict {
   decision: 'SKIP' | 'REMEMBER' | 'SPEAK';
   note?: string;
   speech?: string;
+  claims?: { build_passed?: boolean; tests_passed?: boolean };
 }
 
 const RULES = `You watch raw events from a coding agent (Codex) working on a software project and decide what the developer, a software engineer listening over a headset, should hear right now.
-Respond ONLY with JSON: {"decision":"SKIP"|"REMEMBER"|"SPEAK","note":string,"speech":string}
+Respond ONLY with JSON: {"decision":"SKIP"|"REMEMBER"|"SPEAK","note":string,"speech":string,"claims":{"build_passed":boolean,"tests_passed":boolean}}
+"claims" must state exactly what your speech asserts: build_passed true only if the speech says or implies the build succeeded; tests_passed likewise. They are checked against the real exit codes.
 - SKIP: pure noise (listing directories, grepping, re-reading files, a command that only inspects state).
 - REMEMBER: a fact worth keeping for later questions (a design decision, a data format, a limitation, a file that now owns some logic). "note" is one technical sentence about the code. Never record anything about the user's preferences or answers: you only see the agent's output, not the user.
 - SPEAK: a milestone the engineer wants to hear while it happens: Codex announced its plan or approach (once, at the start); it edited files (say which and what for); a build or test command FAILED (quote the command and the error line); it asks a question; the task finished.
@@ -62,9 +64,18 @@ export class EventAnalyst {
       : '';
     const prompt = `${RULES}\n\nTask: ${taskText}\nEvents:\n${lines || '(none)'}${outcome}\n\nJSON only.`;
     try {
-      const { text, ms } = await gemma(prompt, { json: true, maxTokens: 250 });
-      const v = parseJsonObject<Verdict>(text);
+      const { text, ms } = await gemma(prompt, { json: true, maxTokens: 300 });
+      let v = parseJsonObject<Verdict>(text);
       if (!v) return;
+      if (finished && finished.status !== 'waiting' && v.decision === 'SPEAK' && verification) {
+        const mismatch = (claimed: boolean | undefined, actual: string) => claimed === true && actual !== 'passed';
+        if (mismatch(v.claims?.build_passed, verification.build) || mismatch(v.claims?.tests_passed, verification.tests)) {
+          console.log(`[analyst] claim mismatch (build ${verification.build}, tests ${verification.tests}), regenerating`);
+          const fix = `${prompt}\n\nYOUR PREVIOUS ANSWER claimed build_passed=${v.claims?.build_passed ?? false}, tests_passed=${v.claims?.tests_passed ?? false}, but the facts are: build ${verification.build}, tests ${verification.tests}. Rewrite the speech so it states these facts correctly (say explicitly if the build was not run), and set claims accordingly. JSON only.`;
+          const retry = parseJsonObject<Verdict>((await gemma(fix, { json: true, maxTokens: 300 })).text);
+          if (retry?.speech) v = retry;
+        }
+      }
       console.log(`[analyst] ${reason} ${ms}ms -> ${v.decision}${v.note ? ` (${v.note.slice(0, 80)})` : ''}`);
       this.orchestrator.transcript('analyst', `${v.decision}${v.note ? `: ${v.note}` : ''}`, { reason, events: batch.length, ms, speech: v.speech });
       if (v.decision === 'REMEMBER' && v.note) this.memory.push(v.note);
@@ -76,7 +87,7 @@ export class EventAnalyst {
         v.speech = files.length ? `Editing ${files.slice(0, 4).join(', ')}.` : 'Codex is editing project files now.';
       }
       if (finished?.status === 'waiting') { v.decision = 'SPEAK'; v.speech = finished.question ?? v.speech; }
-      else if (finished && v.decision === 'SPEAK' && v.speech && (finished.files?.length ?? 0) > 0) v.speech = enforceVerificationClaims(v.speech, verification);
+
       if (v.decision === 'SPEAK' && v.speech) {
         const since = Date.now() - (this.lastSpokeAt.get(taskId) ?? 0);
         if (!finished && !hasFailure && !wrote && since < EventAnalyst.COOLDOWN_MS) {
