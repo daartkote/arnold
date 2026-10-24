@@ -48,6 +48,9 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
       case 'resume':
         orchestrator.resume(); notes.push('resumed');
         break;
+      case 'new_session':
+        await orchestrator.reset(); notes.push('session reset');
+        break;
       case 'get_status':
         break;
     }

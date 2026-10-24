@@ -7,7 +7,8 @@ export type Action =
   | { type: 'get_status' }
   | { type: 'research_project'; question: string }
   | { type: 'stop' }
-  | { type: 'resume' };
+  | { type: 'resume' }
+  | { type: 'new_session' };
 
 export interface ConversationReply {
   speech: string;
@@ -48,6 +49,7 @@ Action types:
 - {"type":"research_project","question":string} when the user asks a question about the codebase (how is X stored, where is Y, what does Z do). This runs read-only while coding continues; say you'll look it up.
 - {"type":"stop"} when the user clearly wants to stop/abort the current work.
 - {"type":"resume"} when the user wants to continue the paused queue.
+- {"type":"new_session"} when the user clearly asks to start over, start a new session, reset, or clear all tasks and history. Confirm in speech that everything was cleared.
 - {"type":"get_status"} when the user asks what's happening; answer from the state.
 Chit-chat or clarifications need no actions. If the request is ambiguous, ask one short question instead of enqueueing.
 If the state lists pending notifications and the latest user message is a notification relay (starts with [notification]), announce it in one sentence truthfully.
