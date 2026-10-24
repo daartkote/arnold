@@ -46,7 +46,9 @@ button.ghost:hover { color: var(--text); }
 .ghost-link:hover { color: var(--accent); }
 
 main { display: grid; grid-template-columns: 1fr 1.15fr; gap: 20px; align-items: start; }
-@media (max-width: 960px) { main { grid-template-columns: 1fr; } .shell { padding: 16px; } }
+.wide { grid-column: 1 / -1; }
+.wide.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 960px) { main { grid-template-columns: 1fr; } .wide.two { grid-template-columns: 1fr; } .shell { padding: 16px; } }
 .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
@@ -130,7 +132,7 @@ main { display: grid; grid-template-columns: 1fr 1.15fr; gap: 20px; align-items:
 .pill.who-notification { border-color: #f3dfb8; color: var(--amber); }
 
 .feed { flex: 1; }
-.events { list-style: none; padding: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; min-height: 160px; max-height: 40vh; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+.events { list-style: none; padding: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; min-height: 120px; max-height: 32vh; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
 .events li { display: flex; gap: 10px; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); }
 .events li .mono:first-child { color: var(--faint); }
 .events .pill { font-family: Manrope, sans-serif; }
@@ -145,3 +147,5 @@ main { display: grid; grid-template-columns: 1fr 1.15fr; gap: 20px; align-items:
 .steps li.current .step-say { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
 .step-expect { margin-top: 3px; }
 .preview iframe { width: 100%; height: 46vh; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.analysis { margin-top: 4px; font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+.card.proposal { border-color: #f3dfb8; background: #fffdf7; }

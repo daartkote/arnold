@@ -27,6 +27,7 @@ export default function ConversationLog({ entries }: { entries: TranscriptEntry[
       <ul className="translog">
         {entries.slice(-80).map(e => {
           const actions = (e.meta?.actions as { type: string }[] | undefined)?.map(a => a.type).filter(t => t !== 'get_status');
+          const an = e.meta?.analysis as { intent?: string; complete?: boolean; confidence?: number; gaps?: string[]; understood?: string } | undefined;
           return (
             <li key={e.id} className={e.kind}>
               <span className="muted mono">{fmt(e.ts)}</span>
@@ -34,6 +35,11 @@ export default function ConversationLog({ entries }: { entries: TranscriptEntry[
               <span className="grow">
                 {e.text}
                 {actions && actions.length > 0 && <span className="actions"> · {actions.join(', ')}</span>}
+                {an && (
+                  <div className="analysis" title={an.understood}>
+                    {an.intent}{an.complete === false ? ' · incomplete' : ''}{typeof an.confidence === 'number' ? ` · ${Math.round(an.confidence * 100)}%` : ''}{an.gaps && an.gaps.length > 0 ? ` · gap: ${an.gaps[0]}` : ''}
+                  </div>
+                )}
               </span>
             </li>
           );

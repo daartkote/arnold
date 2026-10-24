@@ -20,6 +20,8 @@ export class Orchestrator extends EventEmitter {
     super();
     this.log = new EventLog(dataDir);
     this.state = {
+      proposal: null,
+      fragment: null,
       provider: adapter.name,
       projectDir,
       paused: false,
@@ -53,6 +55,8 @@ export class Orchestrator extends EventEmitter {
   async reset(): Promise<void> {
     if (this.activeTask()?.status === 'running') await this.stop();
     this.state.tasks = [];
+    this.state.proposal = null;
+    this.state.fragment = null;
     this.state.events = [];
     this.state.notifications = [];
     this.state.research = [];
@@ -99,6 +103,43 @@ export class Orchestrator extends EventEmitter {
     if (delay > 0) setTimeout(() => void this.pump(), delay);
     else void this.pump();
     return task;
+  }
+
+  propose(text: string) {
+    this.state.proposal = { text, createdAt: Date.now() };
+    this.state.fragment = null;
+    this.transcript('system', `proposed task, awaiting confirmation: ${text}`);
+    this.publish();
+  }
+
+  confirmProposal(): Task | null {
+    const p = this.state.proposal;
+    if (!p) return null;
+    this.state.proposal = null;
+    return this.enqueue(p.text, 'voice');
+  }
+
+  rejectProposal() {
+    if (!this.state.proposal) return;
+    this.transcript('system', 'proposal dropped');
+    this.state.proposal = null;
+    this.publish();
+  }
+
+  private fragmentTimer: NodeJS.Timeout | null = null;
+
+  setFragment(text: string | null) {
+    if (this.fragmentTimer) { clearTimeout(this.fragmentTimer); this.fragmentTimer = null; }
+    this.state.fragment = text ? { text, at: Date.now() } : null;
+    this.publish();
+    if (text) {
+      const timeout = Number(process.env.FRAGMENT_TIMEOUT_MS ?? 8000);
+      this.fragmentTimer = setTimeout(() => {
+        if (this.state.fragment?.text === text) {
+          this.notify('fragment', `I only caught "${text.slice(0, 80)}". Could you finish the thought?`);
+        }
+      }, timeout);
+    }
   }
 
   updateQueued(taskId: string, text: string): boolean {

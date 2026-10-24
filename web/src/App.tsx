@@ -70,50 +70,25 @@ export default function App() {
         <section className="col">
           <ConversationLog entries={state.transcript} />
 
+          {state.proposal && (
+            <div className="card proposal">
+              <div className="label">Proposed task <span className="status waiting">Say “yes” to start</span></div>
+              <p className="task-text">{state.proposal.text}</p>
+            </div>
+          )}
+          {state.fragment && <p className="muted">Listening… heard so far: “{state.fragment.text}”</p>}
+
           <div className="card">
             <div className="label">Active task {active ? <span className={`status ${active.status}`}>{statusLabel[active.status]}</span> : <span className="status">{state.paused ? 'Paused' : 'Idle'}</span>}</div>
             {active ? (
               <>
-                <p className="task-text">{active.text}</p>
+                <p className="task-text">{active.text.split('\n')[0]}</p>
                 <p className="muted">started {active.startedAt ? fmt(active.startedAt) : ''}</p>
               </>
             ) : (
-              <div className="empty"><span>⚡</span>{state.paused ? 'Queue paused. Press Resume to continue.' : 'No task running. Say or type something to start.'}</div>
+              <div className="empty"><span>⚡</span>{state.paused ? 'Queue paused. Press Resume to continue.' : 'No task running. Say what you want to build.'}</div>
             )}
           </div>
-
-          <div className="card">
-            <div className="label">Queue <span className="count">{queued.length}</span></div>
-            {queued.length === 0 && <div className="empty"><span>☰</span>Nothing queued</div>}
-            <ul className="list">
-              {queued.map((t, i) => (
-                <li key={t.id}>
-                  <span className="idx">{i + 1}</span>
-                  <span className="grow">{t.text}</span>
-                  <span className="pill">{t.source}</span>
-                  <button className="ghost" onClick={() => api.cancel(t.id)}>✕</button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="card">
-            <div className="label">History <span className="count">{history.length}</span></div>
-            {history.length === 0 && <div className="empty"><span>✓</span>No finished tasks yet</div>}
-            <ul className="list">
-              {history.map(t => (
-                <li key={t.id} className="history">
-                  <span className={`status small ${t.status}`}>{statusLabel[t.status]}</span>
-                  <span className="grow">
-                    {t.text}
-                    {t.summary && <div className="muted summary">{t.summary}</div>}
-                  </span>
-                  {t.commandsRun != null && <span className="pill">{t.commandsRun} cmd{t.commandsFailed ? ` · ${t.commandsFailed} failed` : ''}</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
-
         </section>
 
         <section className="col">
@@ -135,16 +110,52 @@ export default function App() {
               </ul>
             </div>
           )}
+        </section>
 
+        <section className="wide">
           <div className="card feed">
             <div className="label">Codex events</div>
             <ul className="events">
               {state.events.length === 0 && <li><span className="mono">{fmt(Date.now())}</span><span>waiting for events…</span></li>}
-              {state.events.slice(-60).reverse().map(e => (
+              {state.events.slice(-80).reverse().map(e => (
                 <li key={e.id}>
                   <span className="muted mono">{fmt(e.ts)}</span>
                   <span className="pill mono">{e.type}</span>
                   <span className="grow mono">{e.summary}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="wide two">
+          <div className="card">
+            <div className="label">Queue <span className="count">{queued.length}</span></div>
+            {queued.length === 0 && <div className="empty"><span>☰</span>Nothing queued</div>}
+            <ul className="list">
+              {queued.map((t, i) => (
+                <li key={t.id}>
+                  <span className="idx">{i + 1}</span>
+                  <span className="grow">{t.text.split('\n')[0]}</span>
+                  <span className="pill">{t.source}</span>
+                  <button className="ghost" onClick={() => api.cancel(t.id)}>✕</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="card">
+            <div className="label">History <span className="count">{history.length}</span></div>
+            {history.length === 0 && <div className="empty"><span>✓</span>No finished tasks yet</div>}
+            <ul className="list">
+              {history.map(t => (
+                <li key={t.id} className="history">
+                  <span className={`status small ${t.status}`}>{statusLabel[t.status]}</span>
+                  <span className="grow">
+                    {t.text.split('\n')[0]}
+                    {t.summary && <div className="muted summary">{t.summary}</div>}
+                  </span>
+                  {t.commandsRun != null && <span className="pill">{t.commandsRun} cmd{t.commandsFailed ? ` · ${t.commandsFailed} failed` : ''}</span>}
                 </li>
               ))}
             </ul>

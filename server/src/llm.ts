@@ -17,7 +17,7 @@ interface Provider {
 const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? process.env.GEMMA_TIMEOUT_MS ?? 6000);
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? '';
 const GROQ_KEY = process.env.GROQ_API_KEY ?? '';
-const GROQ_MODEL = process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b';
+const GROQ_MODELS = (process.env.GROQ_MODELS ?? process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b,openai/gpt-oss-120b').split(',').map(m => m.trim()).filter(Boolean);
 const GEMINI_MODELS = (process.env.GEMMA_MODELS ?? process.env.GEMMA_MODEL ?? 'gemma-4-26b-a4b-it,gemini-3.8-flash').split(',').map(m => m.trim()).filter(Boolean);
 
 function openAiCompatible(name: string, baseUrl: string, key: string, model: string): Provider {
@@ -74,7 +74,7 @@ function gemini(model: string): Provider {
 }
 
 export const providers: Provider[] = [
-  ...(GROQ_KEY ? [openAiCompatible('groq', 'https://api.groq.com/openai/v1', GROQ_KEY, GROQ_MODEL)] : []),
+  ...(GROQ_KEY ? GROQ_MODELS.map(m => openAiCompatible('groq', 'https://api.groq.com/openai/v1', GROQ_KEY, m)) : []),
   ...GEMINI_MODELS.map(gemini),
 ];
 
@@ -91,7 +91,7 @@ export async function llm(prompt: string, opts: LlmOpts = {}): Promise<LlmResult
         return { text, ms: Date.now() - t0, model: p.name };
       } catch (err) {
         errors.push((err as Error).message);
-        if (!RETRYABLE.test((err as Error).message)) break;
+        if (!RETRYABLE.test((err as Error).message) || /http 429/.test((err as Error).message)) break;
       }
     }
   }

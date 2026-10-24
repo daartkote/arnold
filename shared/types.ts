@@ -61,7 +61,14 @@ export interface ResearchQuery {
   createdAt: number;
 }
 
+export interface Proposal {
+  text: string;
+  createdAt: number;
+}
+
 export interface AppState {
+  proposal: Proposal | null;
+  fragment: { text: string; at: number } | null;
   provider: string;
   projectDir: string;
   paused: boolean;

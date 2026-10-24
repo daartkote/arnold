@@ -4,6 +4,8 @@ import { describeVerification } from './verification.ts';
 
 export type Action =
   | { type: 'enqueue_task'; text: string }
+  | { type: 'confirm_task' }
+  | { type: 'reject_task' }
   | { type: 'cancel_queued_task'; task_id?: string; text?: string }
   | { type: 'get_status' }
   | { type: 'research_project'; question: string }
@@ -12,7 +14,16 @@ export type Action =
   | { type: 'new_session' }
   | { type: 'reset_project' };
 
+export interface Analysis {
+  complete: boolean;
+  intent: 'task' | 'question_about_code' | 'status' | 'control' | 'answer' | 'chitchat' | 'unclear';
+  understood: string;
+  gaps: string[];
+  confidence: number;
+}
+
 export interface ConversationReply {
+  analysis?: Analysis;
   speech: string;
   actions: Action[];
 }
@@ -47,6 +58,8 @@ function describeState(state: AppState): string {
   const waiting = [...state.tasks].reverse().find(t => t.status === 'waiting');
   const lines = [
     `Provider: ${state.provider}. Queue ${state.paused ? 'PAUSED' : 'running'}.`,
+    state.fragment ? `UNFINISHED UTTERANCE from the user ${Math.round((Date.now() - state.fragment.at) / 1000)}s ago: "${state.fragment.text}". If the latest message continues it, combine them into one request.` : '',
+    state.proposal ? `PROPOSED TASK AWAITING THE USER'S CONFIRMATION: "${state.proposal.text}". If the user confirms (yes, go, start, do it, correct) → confirm_task. If the user declines → reject_task. If the user changes or adds details → enqueue_task with the merged text (it becomes the new proposal) and restate it.` : '',
     waiting && !active ? `THE CODING AGENT IS WAITING FOR THE USER'S ANSWER to this question: "${waiting.question}" (about the task: ${waiting.text.split('\n')[0]}). If the user's latest message answers it, emit enqueue_task with text "Answer to your question: <the user's answer>. Continue the task." The speech must be a short confirmation in your own words (e.g. "Separate input it is, continuing."), never the task text itself. If the user asks what is going on, repeat the question.` : '',
     unannounced.length ? `FINISHED BUT NOT YET TOLD TO THE USER (you MUST report these first, with the concrete details):\n${unannounced.map(t => `  - ${describeTask(t)}`).join('\n')}` : '',
     active ? `Active task [${active.id}] (${active.status}, started ${Math.round((Date.now() - (active.startedAt ?? Date.now())) / 1000)}s ago): ${active.text}\nLive activity from Codex (newest last):\n${liveActivity(state)}` : 'No active task.',
@@ -64,10 +77,18 @@ Talk like a senior engineer pairing with a peer: concrete and technical. Name fi
 Ground everything in the state below. About the agent's work: if Codex has not reported something, say you don't know yet. About the codebase itself (how is X stored, where is Y, what does Z do, which library, what format): NEVER answer "I don't know", always emit research_project and say you'll look it up; the answer will be spoken when ready. Never claim a build passed or tests ran unless the "verification" field or a command event with exit code 0 says so. If verification says "build not run", say that the build was not run.
 When asked what is happening, narrate the live activity: what Codex just said it is doing, which files it edited, what command is running and whether it passed.
 
-You respond ONLY with one JSON object: {"speech": string, "actions": Action[]}
+You respond ONLY with one JSON object, fields in this order:
+{"analysis": {"complete": boolean, "intent": "task"|"question_about_code"|"status"|"control"|"answer"|"chitchat"|"unclear", "understood": string, "gaps": string[], "confidence": number}, "speech": string, "actions": Action[]}
+Fill "analysis" FIRST and derive speech and actions from it:
+- complete: is the latest user utterance a finished thought? Speech recognition often cuts sentences; "add tags and" or "make the list" are not complete.
+- understood: one line, what the user wants, in your words.
+- gaps: decisions ONLY THE USER can make: behaviour, UX placement, what happens to existing data, scope. Never facts about the codebase ("where is the header", "which file", "which component", "what framework"): the coding agent reads the code and finds those itself. Empty if none, or if the user said "you decide".
+- confidence: 0 to 1 that you understood correctly.
+Rules that follow from the analysis: not complete → no actions, say "go on". gaps non-empty for a new feature → no actions, ask ONE question about the most important gap. confidence below 0.6 → no actions, say what you understood and ask to confirm. Otherwise act.
 Action types:
 - {"type":"enqueue_task","text":string} when the user asks to change, add, fix or build something in the project AND the request is specific enough to implement without guessing. Rewrite the request as a precise self-contained instruction for the coding agent, keeping the user's technical wording. Do not invent requirements the user did not state.
   BEFORE enqueueing a new feature, check for one obvious design decision the user left open (where the input goes, how it is toggled, what happens to existing data, which component). If there is one, do NOT enqueue yet: ask exactly one short question about it, like a senior engineer would. Enqueue once the user answers. If the user says "you decide", "just do it", "whatever you think" or similar, there is NO question: enqueue right away and pick a sensible default yourself. Small fixes and fully specified requests need no question. Never ask more than one question per request. A reply that asks a question must carry no actions.
+- {"type":"confirm_task"} when the user confirms the proposed task. {"type":"reject_task"} when they decline it.
 - {"type":"cancel_queued_task","task_id":string} ONLY when the user explicitly asks to cancel, remove or drop a queued task. Never for questions or repeats.
 - {"type":"research_project","question":string} for ANY question about the codebase or the project's behaviour (how is X stored, where is Y, what does Z do, "by the way…"). Mandatory for such questions, even if the queue is busy. This runs read-only while coding continues; say you'll look it up.
 - {"type":"stop"} when the user clearly wants to stop/abort the current work.
@@ -79,7 +100,8 @@ Never enqueue destructive git operations (reset, checkout --, clean, push --forc
 If the coding agent is waiting for an answer (see state) and the user answers, enqueue_task with the answer as described there; that continues the same agent thread.
 Chit-chat or clarifications need no actions. If the request is ambiguous, ask one short question instead of enqueueing.
 If the sentence looks cut off mid-thought (ends on "and", "with", "then", a dangling noun, or has no clear object), do NOT enqueue: say "go on" or ask what should happen, in a few words.
-When you do enqueue, the speech is a one-line restatement of what will be built ("Queued: tags as chips with a filter, build at the end. Starting in a few seconds, add details if you want."). The task starts after a short pause, so the user can still add to it.
+enqueue_task does NOT start work. It creates a proposal: your speech must restate the task in your own words, concretely, and end with a short confirmation question ("I'll add a tags field to each task, show them as chips and filter by tag. Start?"). Work starts only after confirm_task.
+If the analysis says the utterance is not complete, the speech is just "Mm-hm." and no actions: the user is still talking.
 
 Transcripts come from speech recognition in a noisy room. Drop fillers and repeated words. A mis-heard word usually sounds like a term from the project vocabulary below or from the conversation so far; prefer that reading when the literal one makes no sense for this project. Write the task text as a clean engineering instruction, never quote the raw transcript. If the request still makes no sense, ask the user to repeat it instead of enqueueing.
 If the request is the same as the active task or a queued task, do NOT enqueue it again; say it is already in progress or queued.
@@ -102,7 +124,19 @@ export async function converse(messages: ChatMessage[], state: AppState, memory:
   if (!parsed || typeof parsed.speech !== 'string') {
     return { speech: text.slice(0, 300) || "Sorry, I didn't catch that.", actions: [] };
   }
-  const actions = Array.isArray(parsed.actions) ? (parsed.actions.filter(a => a && typeof a.type === 'string') as Action[]) : [];
-  console.log(`[gemma] ${model} ${ms}ms actions=${actions.map(a => a.type).join(',') || 'none'}`);
-  return { speech: parsed.speech, actions };
+  let actions = Array.isArray(parsed.actions) ? (parsed.actions.filter(a => a && typeof a.type === 'string') as Action[]) : [];
+  const a = parsed.analysis;
+  const analysis: Analysis | undefined = a && typeof a === 'object'
+    ? { complete: a.complete !== false, intent: a.intent ?? 'unclear', understood: String(a.understood ?? ''), gaps: Array.isArray(a.gaps) ? a.gaps.map(String) : [], confidence: typeof a.confidence === 'number' ? a.confidence : 1 }
+    : undefined;
+  if (analysis) analysis.gaps = analysis.gaps.filter(g => !/\b(where|which|what)\b.*\b(file|component|folder|directory|module|framework|library|located|defined|stored in the code)\b/i.test(g) && !/\blocat/i.test(g));
+  let speech = parsed.speech;
+  if (analysis) {
+    const sideEffects = actions.filter(x => x.type !== 'get_status');
+    if (!analysis.complete && sideEffects.length) { actions = []; speech = speech.trim().endsWith('?') ? speech : 'Go on, I am listening.'; }
+    else if (analysis.confidence < 0.6 && sideEffects.length) { actions = []; if (!speech.trim().endsWith('?')) speech = `I understood: ${analysis.understood}. Is that right?`; }
+    else if (analysis.intent === 'task' && analysis.gaps.length && sideEffects.some(x => x.type === 'enqueue_task')) { actions = []; if (!speech.trim().endsWith('?')) speech = `Quick question first: ${analysis.gaps[0]}?`; }
+  }
+  console.log(`[gemma] ${model} ${ms}ms intent=${analysis?.intent ?? '-'} complete=${analysis?.complete ?? '-'} conf=${analysis?.confidence ?? '-'} gaps=${analysis?.gaps.length ?? '-'} actions=${actions.map(x => x.type).join(',') || 'none'}`);
+  return { analysis, speech, actions };
 }

@@ -49,21 +49,24 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
       case 'enqueue_task': {
         const text = a.text?.trim();
         if (!text) break;
-        const state = orchestrator.getState();
-        const open = state.tasks.filter(t => t.status === 'queued' || t.status === 'running' || t.status === 'cancelling');
-        const dup = open.find(t => similar(t.text, text));
-        if (dup) {
-          const words = (x: string) => x.split('\n')[0].split(/\s+/).length;
-          const richer = words(text) >= words(dup.text) * 1.5;
-          if (richer && dup.status === 'queued') { orchestrator.updateQueued(dup.id, text); notes.push(`updated queued ${dup.id} with more detail`); }
-          else if (richer) { const f = orchestrator.enqueue(`Additional requirements for the task you are working on: ${text}`, 'voice'); notes.push(`follow-up ${f.id} for running ${dup.id}`); }
-          else notes.push(`duplicate of ${dup.id}, not enqueued`);
-          break;
-        }
-        const t = orchestrator.enqueue(text, 'voice');
-        notes.push(`enqueued ${t.id}`);
+        orchestrator.propose(text);
+        notes.push('proposed');
         break;
       }
+      case 'confirm_task': {
+        const state = orchestrator.getState();
+        const text = state.proposal?.text;
+        if (!text) { notes.push('nothing to confirm'); break; }
+        const open = state.tasks.filter(t => t.status === 'queued' || t.status === 'running' || t.status === 'cancelling');
+        const dup = open.find(t => similar(t.text, text));
+        if (dup) { orchestrator.rejectProposal(); notes.push(`duplicate of ${dup.id}, not enqueued`); break; }
+        const t = orchestrator.confirmProposal();
+        if (t) notes.push(`confirmed → enqueued ${t.id}`);
+        break;
+      }
+      case 'reject_task':
+        orchestrator.rejectProposal(); notes.push('proposal rejected');
+        break;
       case 'cancel_queued_task': {
         const id = a.task_id ?? orchestrator.queuedTasks().find(t => a.text && t.text.toLowerCase().includes(a.text.toLowerCase()))?.id;
         if (id) notes.push(orchestrator.cancelQueued(id) ? `cancelled ${id}` : `not queued ${id}`);
@@ -117,10 +120,12 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
       const unannouncedBefore = orchestrator.unannouncedTasks().map(t => t.id);
       const result = await converse(body.messages ?? [], orchestrator.getState(), memory(), vocabulary());
       speech = result.speech;
-      orchestrator.transcript('gemma', speech, { actions: result.actions });
+      orchestrator.transcript('gemma', speech, { actions: result.actions, analysis: result.analysis });
       if (unannouncedBefore.length) orchestrator.markAnnounced(unannouncedBefore);
+      if (result.analysis && !result.analysis.complete) orchestrator.setFragment(lastUser);
+      else if (orchestrator.getState().fragment) orchestrator.setFragment(null);
       const asksUser = /\?\s*$/.test(speech.trim()) && !/^\[notification\]/.test(lastUser);
-      if (asksUser && result.actions.some(a => a.type !== 'get_status')) {
+      if (asksUser && result.actions.some(a => a.type !== 'get_status' && a.type !== 'enqueue_task')) {
         app.log.info({ dropped: result.actions.map(a => a.type) }, 'agent asked a question, actions deferred');
         result.actions = [];
       }
