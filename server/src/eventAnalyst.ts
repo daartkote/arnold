@@ -48,8 +48,15 @@ export class EventAnalyst {
     if (!taskId) return;
     const taskText = finished?.text ?? this.orchestrator.getState().tasks.find(t => t.id === taskId)?.text ?? '';
     const lines = batch.map(e => `${e.type}: ${e.summary}`).join('\n');
+    const allEvents = this.orchestrator.getState().events.filter(e => e.taskId === taskId);
+    const commands = allEvents.filter(e => e.type === 'item.completed:command_execution').map(e => e.summary.replace(/^\$ /, ''));
+    const testRan = commands.some(c => /\b(test|vitest|jest|pytest|mocha|playwright|cypress)\b/i.test(c));
+    const buildRan = commands.filter(c => /\b(build|tsc|compile)\b/i.test(c));
+    const facts = finished
+      ? `\nVERIFICATION FACTS (authoritative):\n  build commands: ${buildRan.length ? buildRan.map(c => c.slice(0, 120)).join('; ') : 'none ran'}\n  test command ran: ${testRan ? 'yes' : 'NO, do not mention tests'}`
+      : '';
     const outcome = finished
-      ? `\nTASK FINISHED with status "${finished.status}". Files changed: ${finished.files?.join(', ') || 'none recorded'}. Commands run: ${finished.commandsRun ?? 0}, failed: ${finished.commandsFailed ?? 0}. Agent's final message: ${(finished.summary ?? '').slice(0, 900)}`
+      ? `\nTASK FINISHED with status "${finished.status}". Files changed: ${finished.files?.join(', ') || 'none recorded'}. Commands run: ${finished.commandsRun ?? 0}, failed: ${finished.commandsFailed ?? 0}. Agent's final message: ${(finished.summary ?? '').slice(0, 900)}${facts}`
       : '';
     const prompt = `${RULES}\n\nTask: ${taskText}\nEvents:\n${lines || '(none)'}${outcome}\n\nJSON only.`;
     try {
@@ -63,6 +70,9 @@ export class EventAnalyst {
         const item = (e.raw as { item?: { exit_code?: number } } | undefined)?.item;
         return typeof item?.exit_code === 'number' && item.exit_code !== 0;
       });
+      if (v.decision === 'SPEAK' && v.speech && !testRan) {
+        v.speech = v.speech.replace(/\b(,?\s*and\s+)?(unit\s+|all\s+)?tests?\s+(all\s+)?(passed|pass|succeeded|succeed|are\s+green|green)\b/gi, '').replace(/\bbuild and tests\b/gi, 'build').replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').trim();
+      }
       if (v.decision === 'SPEAK' && v.speech) {
         const since = Date.now() - (this.lastSpokeAt.get(taskId) ?? 0);
         if (!finished && !hasFailure && since < EventAnalyst.COOLDOWN_MS) {

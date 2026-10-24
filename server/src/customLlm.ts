@@ -92,11 +92,16 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
     if (silentTurn) {
       app.log.info('silent turn');
       speech = orchestrator.unannouncedTasks().length ? 'Quick update.' : 'Still here.';
+    } else if (lastUser.startsWith('[notification]')) {
+      const text = lastUser.slice('[notification]'.length).trim();
+      const matched = orchestrator.getState().notifications.find(n => n.text === text || text.startsWith(n.text.slice(0, 80)));
+      if (matched) orchestrator.ackNotification(matched.id);
+      orchestrator.markAnnounced(orchestrator.unannouncedTasks().map(t => t.id));
+      orchestrator.transcript('system', `spoken verbatim: ${text}`, { delivered: Boolean(matched) });
+      speech = text;
     } else try {
-      const isRelay = lastUser.startsWith('[notification]');
-      orchestrator.transcript(isRelay ? 'system' : 'user', isRelay ? `relayed to agent: ${lastUser.slice(14).trim()}` : lastUser);
+      orchestrator.transcript('user', lastUser);
       const unannouncedBefore = orchestrator.unannouncedTasks().map(t => t.id);
-      if (isRelay && unannouncedBefore.length) orchestrator.markAnnounced(unannouncedBefore);
       const result = await converse(body.messages ?? [], orchestrator.getState(), memory(), vocabulary());
       speech = result.speech;
       orchestrator.transcript('gemma', speech, { actions: result.actions });
