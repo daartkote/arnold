@@ -48,7 +48,7 @@ export default function App() {
         <div className="brand">
           <div className="logo"><div><span style={{ height: 10 }} /><span style={{ height: 18 }} /><span style={{ height: 13 }} /><span style={{ height: 7 }} /></div></div>
           <div>
-            <h1>VoiceCode</h1>
+            <h1>Arnold</h1>
             <div className="meta">
               provider <span className="chip">{state.provider}</span> · <span className="mono" title={state.projectDir}>{state.projectDir.split('/').slice(-1)[0]}</span>
               {state.threadId && <> · thread <span className="mono">{state.threadId.slice(0, 8)}</span></>}
