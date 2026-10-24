@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import VoicePanel from './VoicePanel';
 import type { Task } from '../../shared/types';
 import { api, useAppState } from './useAppState';
 
@@ -20,6 +21,11 @@ export default function App() {
   const { state, connected } = useAppState();
   const [text, setText] = useState('');
   const [question, setQuestion] = useState('');
+  const [agentId, setAgentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/config').then(r => r.json()).then(c => setAgentId(c.agentId)).catch(() => {});
+  }, []);
 
   if (!state) return <div className="shell"><p className="muted">Connecting…</p></div>;
 
@@ -116,6 +122,7 @@ export default function App() {
         </section>
 
         <section className="col">
+          <VoicePanel agentId={agentId} pending={state.notifications} />
           <form onSubmit={ask} className="row">
             <input value={question} onChange={e => setQuestion(e.target.value)} placeholder="By the way… ask about the project (read-only)" />
             <button type="submit">Ask</button>

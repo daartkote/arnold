@@ -58,3 +58,12 @@ button.ghost { background: transparent; border-color: transparent; color: var(--
 .feed { flex: 1; min-height: 300px; }
 .events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow: auto; }
 .events li { display: flex; gap: 10px; align-items: baseline; }
+.voice-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.voice-head .label { margin: 0; }
+.dot.speaking { background: var(--accent); box-shadow: 0 0 0 4px rgba(122, 184, 255, 0.25); }
+.error { color: var(--danger); font-size: 13px; margin: 4px 0; }
+.transcript { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; }
+.transcript li { display: flex; gap: 10px; font-size: 14px; }
+.transcript .who { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; width: 72px; flex: none; padding-top: 3px; }
+.transcript li.agent span:last-child { color: var(--accent); }
+.transcript li.system { color: var(--muted); font-size: 12px; }

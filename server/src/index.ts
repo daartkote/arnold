@@ -6,6 +6,7 @@ import type { ServerMessage } from '../../shared/types.ts';
 import { Orchestrator } from './orchestrator.ts';
 import { FakeAdapter } from './fakeAdapter.ts';
 import { CodexAdapter } from './codexAdapter.ts';
+import { registerCustomLlm } from './customLlm.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const PROJECT_DIR = resolve(process.env.PROJECT_DIR ?? '../demo-project');
@@ -17,6 +18,7 @@ const orchestrator = new Orchestrator(adapter, PROJECT_DIR, DATA_DIR);
 const app = Fastify({ logger: { level: 'info' } });
 await app.register(cors, { origin: true });
 await app.register(websocket);
+registerCustomLlm(app, orchestrator, process.env.CUSTOM_LLM_SECRET);
 
 const sockets = new Set<{ send(data: string): void }>();
 const broadcast = (msg: ServerMessage) => {
@@ -34,6 +36,8 @@ app.get('/ws', { websocket: true }, socket => {
 });
 
 app.get('/api/state', async () => orchestrator.getState());
+
+app.get('/api/config', async () => ({ agentId: process.env.ELEVENLABS_AGENT_ID ?? null }));
 
 app.post<{ Body: { text: string; source?: 'ui' | 'voice' } }>('/api/tasks', async (req, reply) => {
   const text = req.body?.text?.trim();
