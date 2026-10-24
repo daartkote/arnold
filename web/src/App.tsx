@@ -25,8 +25,16 @@ export default function App() {
   const [agentId, setAgentId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/config').then(r => r.json()).then(c => setAgentId(c.agentId)).catch(() => {});
-  }, []);
+    if (agentId) return;
+    let cancelled = false;
+    const load = () =>
+      fetch('/api/config')
+        .then(r => r.json())
+        .then(c => { if (!cancelled && c.agentId) setAgentId(c.agentId); else if (!cancelled) setTimeout(load, 1500); })
+        .catch(() => { if (!cancelled) setTimeout(load, 1500); });
+    load();
+    return () => { cancelled = true; };
+  }, [agentId, connected]);
 
   if (!state) return <div className="shell"><p className="muted">Connecting…</p></div>;
 
