@@ -10,6 +10,12 @@ function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9а-яё ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+const CUT_OFF = /\b(and|with|then|or|to|the|a|an|of|for|but|also|plus|that|which|so)\s*[,.…]*\s*$/i;
+
+export function looksCutOff(text: string): boolean {
+  return CUT_OFF.test(text.trim()) || /,\s*$/.test(text.trim());
+}
+
 export function isDuplicateUtterance(text: string, now = Date.now()): boolean {
   const n = normalize(text);
   if (!n || now - lastActed.at > DEDUP_WINDOW_MS) return false;
@@ -114,7 +120,10 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
       orchestrator.transcript('gemma', speech, { actions: result.actions });
       if (unannouncedBefore.length) orchestrator.markAnnounced(unannouncedBefore);
       const hasSideEffects = result.actions.some(a => a.type !== 'get_status');
-      if (hasSideEffects && isDuplicateUtterance(lastUser)) {
+      if (hasSideEffects && looksCutOff(lastUser)) {
+        app.log.info({ actions: result.actions.map(a => a.type) }, 'utterance looks cut off, waiting for the rest');
+        speech = 'Go on, I am listening.';
+      } else if (hasSideEffects && isDuplicateUtterance(lastUser)) {
         app.log.info({ actions: result.actions.map(a => a.type) }, 'duplicate utterance, actions skipped');
       } else if (hasSideEffects && settings.dryRun) {
         app.log.info({ actions: result.actions }, 'dry run, actions not executed');
