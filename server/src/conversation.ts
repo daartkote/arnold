@@ -18,6 +18,7 @@ export interface Analysis {
   complete: boolean;
   intent: 'task' | 'question_about_code' | 'status' | 'control' | 'answer' | 'confirm' | 'reject' | 'chitchat' | 'unclear';
   language: string;
+  repeat: boolean;
   understood: string;
   gaps: string[];
   confidence: number;
@@ -55,6 +56,7 @@ function describeState(state: AppState): string {
   const queued = state.tasks.filter(t => t.status === 'queued');
   const recent = state.tasks.filter(t => ['done', 'waiting', 'failed', 'interrupted', 'cancelled'].includes(t.status)).slice(-3);
   const research = state.research.filter(r => r.status === 'done').slice(-1);
+  const researching = state.research.filter(r => r.status === 'running');
   const unannounced = state.tasks.filter(t => ['done', 'waiting', 'failed', 'interrupted'].includes(t.status) && !t.announcedAt);
   const waiting = [...state.tasks].reverse().find(t => t.status === 'waiting');
   const lines = [
@@ -66,6 +68,7 @@ function describeState(state: AppState): string {
     active ? `Active task [${active.id}] (${active.status}, started ${Math.round((Date.now() - (active.startedAt ?? Date.now())) / 1000)}s ago): ${active.text}\nLive activity from Codex (newest last):\n${liveActivity(state)}` : 'No active task.',
     queued.length ? `Queued:\n${queued.map((t, i) => `  ${i + 1}. [${t.id}] ${t.text}`).join('\n')}` : 'Queue is empty.',
     recent.length ? `Recent results:\n${recent.map(t => `  - ${describeTask(t)}`).join('\n')}` : '',
+    researching.length ? `Research already in progress (do not start it again, say it is being looked up): ${researching.map(r => `"${r.question}"`).join('; ')}` : '',
     research.length ? `Latest research answer: ${research[0].answer?.slice(0, 500)}` : '',
     state.notifications.length ? `Pending notifications from the coding agent:\n${state.notifications.map(n => `  - ${n.text}`).join('\n')}` : '',
   ];
@@ -79,10 +82,11 @@ Ground everything in the state below. About the agent's work: if Codex has not r
 When asked what is happening, narrate the live activity: what Codex just said it is doing, which files it edited, what command is running and whether it passed.
 
 You respond ONLY with one JSON object, fields in this order:
-{"analysis": {"complete": boolean, "intent": "task"|"question_about_code"|"status"|"control"|"answer"|"confirm"|"reject"|"chitchat"|"unclear", "language": string, "understood": string, "gaps": string[], "confidence": number}, "speech": string, "actions": Action[]}
+{"analysis": {"complete": boolean, "intent": "task"|"question_about_code"|"status"|"control"|"answer"|"confirm"|"reject"|"chitchat"|"unclear", "language": string, "repeat": boolean, "understood": string, "gaps": string[], "confidence": number}, "speech": string, "actions": Action[]}
 Fill "analysis" FIRST and derive speech and actions from it:
 - complete: is the latest user utterance a finished thought? Speech recognition often cuts sentences; "add tags and" or "make the list" are not complete.
 - intent: "confirm" when a proposed task is awaiting confirmation and the user agrees in any wording (yes, go, do it, sounds good, let's try…); "reject" when they decline or want to drop it. Use these only while a proposal is pending.
+- repeat: true if the latest user message says the same thing as a previous user message in this conversation (speech recognition often sends one utterance 2-3 times with small wording changes), or asks for something already proposed, queued, running or being researched per the state. A repeat gets a one-line acknowledgement and NO actions.
 - language: the language of the user's latest message (e.g. "en", "ru"). The "speech" MUST be written in that language. Task texts for the coding agent are always in English.
 - understood: one line, what the user wants, in your words.
 - gaps: decisions ONLY THE USER can make: behaviour, UX placement, what happens to existing data, scope. Never facts about the codebase ("where is the header", "which file", "which component", "what framework"): the coding agent reads the code and finds those itself. Empty if none, or if the user said "you decide".
@@ -106,6 +110,7 @@ If the sentence looks cut off mid-thought (ends on "and", "with", "then", a dang
 enqueue_task does NOT start work. It creates a proposal: your speech must restate the task in your own words, concretely, and end with a short confirmation question ("I'll add a tags field to each task, show them as chips and filter by tag. Start?"). Work starts only after confirm_task.
 If the analysis says the utterance is not complete, the speech is just "Mm-hm." and no actions: the user is still talking.
 
+Speech recognition sometimes delivers the same utterance several times in a row with small wording differences. Consecutive user messages that say the same thing are ONE request: answer it once, never repeat an action for it (check the state: a task already proposed, queued or running, research already in progress).
 Transcripts come from speech recognition in a noisy room. Drop fillers and repeated words. A mis-heard word usually sounds like a term from the project vocabulary below or from the conversation so far; prefer that reading when the literal one makes no sense for this project. Write the task text as a clean engineering instruction, never quote the raw transcript. If the request still makes no sense, ask the user to repeat it instead of enqueueing.
 If the request is the same as the active task or a queued task, do NOT enqueue it again; say it is already in progress or queued.
 Never speak task ids. Refer to tasks by what they do.
@@ -130,16 +135,17 @@ export async function converse(messages: ChatMessage[], state: AppState, memory:
   let actions = Array.isArray(parsed.actions) ? (parsed.actions.filter(a => a && typeof a.type === 'string') as Action[]) : [];
   const a = parsed.analysis;
   const analysis: Analysis | undefined = a && typeof a === 'object'
-    ? { complete: a.complete !== false, intent: a.intent ?? 'unclear', language: String(a.language ?? 'en'), understood: String(a.understood ?? ''), gaps: Array.isArray(a.gaps) ? a.gaps.map(String) : [], confidence: typeof a.confidence === 'number' ? a.confidence : 1 }
+    ? { complete: a.complete !== false, intent: a.intent ?? 'unclear', language: String(a.language ?? 'en'), repeat: a.repeat === true, understood: String(a.understood ?? ''), gaps: Array.isArray(a.gaps) ? a.gaps.map(String) : [], confidence: typeof a.confidence === 'number' ? a.confidence : 1 }
     : undefined;
   if (analysis) analysis.gaps = analysis.gaps.filter(g => !/\b(where|which|what)\b.*\b(file|component|folder|directory|module|framework|library|located|defined|stored in the code)\b/i.test(g) && !/\blocat/i.test(g));
   let speech = parsed.speech;
   if (analysis) {
     const sideEffects = actions.filter(x => x.type !== 'get_status');
-    if (!analysis.complete && sideEffects.length) { actions = []; speech = speech.trim().endsWith('?') ? speech : 'Go on, I am listening.'; }
+    if (analysis.repeat && sideEffects.length) { actions = []; }
+    else if (!analysis.complete && sideEffects.length) { actions = []; speech = speech.trim().endsWith('?') ? speech : 'Go on, I am listening.'; }
     else if (analysis.confidence < 0.6 && sideEffects.length) { actions = []; if (!speech.trim().endsWith('?')) speech = `I understood: ${analysis.understood}. Is that right?`; }
     else if (analysis.intent === 'task' && analysis.gaps.length && sideEffects.some(x => x.type === 'enqueue_task')) { actions = []; if (!speech.trim().endsWith('?')) speech = `Quick question first: ${analysis.gaps[0]}?`; }
   }
-  console.log(`[gemma] ${model} ${ms}ms lang=${analysis?.language ?? '-'} intent=${analysis?.intent ?? '-'} complete=${analysis?.complete ?? '-'} conf=${analysis?.confidence ?? '-'} gaps=${analysis?.gaps.length ?? '-'} actions=${actions.map(x => x.type).join(',') || 'none'}`);
+  console.log(`[gemma] ${model} ${ms}ms lang=${analysis?.language ?? '-'} repeat=${analysis?.repeat ?? '-'} intent=${analysis?.intent ?? '-'} complete=${analysis?.complete ?? '-'} conf=${analysis?.confidence ?? '-'} gaps=${analysis?.gaps.length ?? '-'} actions=${actions.map(x => x.type).join(',') || 'none'}`);
   return { analysis, speech, actions };
 }

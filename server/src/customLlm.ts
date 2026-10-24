@@ -74,8 +74,6 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
       case 'research_project': {
         const q = a.question?.trim();
         if (!q) break;
-        const recentResearch = orchestrator.getState().research.find(r => (r.status === 'running' || Date.now() - r.createdAt < 60000) && similar(r.question, q));
-        if (recentResearch) { notes.push(`research already ${recentResearch.status} for a similar question`); break; }
         void orchestrator.research(q);
         notes.push('research started');
         break;
@@ -100,6 +98,7 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
 }
 
 interface Answered { speech: string; at: number; promise?: Promise<string> }
+let queue: Promise<unknown> = Promise.resolve();
 const recent = new Map<string, Answered>();
 const REQUEST_DEDUP_MS = 8000;
 
@@ -117,7 +116,7 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
     app.log.info({ lastUser: lastUser.slice(0, 120) }, 'custom llm request');
 
     const key = recentKey(lastUser);
-    const prior = key ? (recent.get(key) ?? [...recent.entries()].find(([k, v]) => Date.now() - v.at < REQUEST_DEDUP_MS && similar(k, key))?.[1]) : undefined;
+    const prior = key ? recent.get(key) : undefined;
     if (prior && Date.now() - prior.at < REQUEST_DEDUP_MS) {
       app.log.info('repeated request, reusing the answer');
       const speech = prior.promise ? await prior.promise : prior.speech;
@@ -127,6 +126,15 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
     const inflight = new Promise<string>(r => { resolveSpeech = r; });
     if (key) recent.set(key, { speech: '', at: Date.now(), promise: inflight });
 
+    const turn = queue.then(() => handleTurn());
+    queue = turn.catch(() => undefined);
+    const speech = await turn;
+    if (key) recent.set(key, { speech, at: Date.now() });
+    resolveSpeech(speech);
+    for (const [k, v] of recent) if (Date.now() - v.at > REQUEST_DEDUP_MS * 4) recent.delete(k);
+    return sendSpeech(reply, body, speech);
+
+    async function handleTurn(): Promise<string> {
     let speech: string;
     const silentTurn = !lastUser.replace(/[.\s…]/g, '').length;
     if (silentTurn) {
@@ -176,10 +184,8 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
       speech = 'Sorry, my language model hiccuped. Say that again?';
     }
 
-    if (key) recent.set(key, { speech, at: Date.now() });
-    resolveSpeech(speech);
-    for (const [k, v] of recent) if (Date.now() - v.at > REQUEST_DEDUP_MS * 4) recent.delete(k);
-    return sendSpeech(reply, body, speech);
+    return speech;
+    }
   });
 }
 
