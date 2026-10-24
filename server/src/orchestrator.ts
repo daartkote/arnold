@@ -73,6 +73,7 @@ export class Orchestrator extends EventEmitter {
     this.state.threadId = null;
     this.transcript('system', `project files reset to ${ref}`);
     this.publish();
+    this.emit('projectReset');
     return `project reset to ${ref}`;
   }
 

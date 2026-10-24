@@ -29,6 +29,7 @@ const refreshVocabulary = async () => {
   }
 };
 orchestrator.on('taskFinished', () => void refreshVocabulary());
+orchestrator.on('projectReset', () => void refreshVocabulary());
 
 const app = Fastify({ logger: { level: 'info' } });
 await app.register(cors, { origin: true });
