@@ -35,8 +35,11 @@ export default function VoicePanel({ agentId, pending }: Props) {
   const muted = connected && pushToTalk && !holding;
 
   useEffect(() => {
-    conversation.setMuted(muted);
-  }, [muted, conversation]);
+    if (!connected) return;
+    try {
+      conversation.setMuted(muted);
+    } catch {}
+  }, [muted, connected, conversation]);
 
   useEffect(() => {
     if (!connected || !pushToTalk) return;
