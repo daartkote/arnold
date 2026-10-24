@@ -1,7 +1,7 @@
 import type { AgentEvent, Task } from '../../shared/types.ts';
 import { llm as gemma, parseJsonObject } from './llm.ts';
 import type { Orchestrator } from './orchestrator.ts';
-import { batchWritesFiles, describeVerification, enforceVerificationClaims } from './verification.ts';
+import { batchWritesFiles, describeVerification, enforceVerificationClaims, filesWrittenIn } from './verification.ts';
 
 interface Verdict {
   decision: 'SKIP' | 'REMEMBER' | 'SPEAK';
@@ -12,7 +12,7 @@ interface Verdict {
 const RULES = `You watch raw events from a coding agent (Codex) working on a software project and decide what the developer, a software engineer listening over a headset, should hear right now.
 Respond ONLY with JSON: {"decision":"SKIP"|"REMEMBER"|"SPEAK","note":string,"speech":string}
 - SKIP: pure noise (listing directories, grepping, re-reading files, a command that only inspects state).
-- REMEMBER: a fact worth keeping for later questions (a design decision, a data format, a limitation, a file that now owns some logic). "note" is one technical sentence.
+- REMEMBER: a fact worth keeping for later questions (a design decision, a data format, a limitation, a file that now owns some logic). "note" is one technical sentence about the code. Never record anything about the user's preferences or answers: you only see the agent's output, not the user.
 - SPEAK: a milestone the engineer wants to hear while it happens: Codex announced its plan or approach (once, at the start); it edited files (say which and what for); a build or test command FAILED (quote the command and the error line); it asks a question; the task finished.
 Do not SPEAK for successful verification commands (build or tests passing) in the middle of a task; the final report covers that. Exploration commands that exit non-zero (rg, grep, ls, cat finding nothing) are not failures, ignore them.
 "speech" is 1-2 spoken sentences in the voice of a senior engineer narrating their own work: concrete file names, components, types, commands, exit codes. No markdown, no filler, no "all set" or "ready to test". Say "build passed" only if npm run build (or equivalent) exited 0 in the events; say "tests" only if a test command ran. For a finished task: what changed, in which files, and what was verified, in at most two sentences.`;
@@ -52,7 +52,9 @@ export class EventAnalyst {
     const wrote = batchWritesFiles(batch);
     const verification = finished?.verification;
     const facts = finished
-      ? `\nVERIFICATION FACTS (authoritative, computed from exit codes): ${describeVerification(verification)}. If the build was not run, say so plainly.`
+      ? finished.status === 'waiting'
+        ? `\nTHE AGENT STOPPED TO ASK THE USER A QUESTION. SPEAK: repeat the question to the user almost verbatim, one sentence of context at most, no claims about work done.`
+        : `\nVERIFICATION FACTS (authoritative, computed from exit codes): ${describeVerification(verification)}. If the build was not run, say so plainly.`
       : wrote ? `\nFILES WERE MODIFIED in this batch (file_change or a command that writes files). This is a milestone: SPEAK, naming the files and what changed.` : '';
     const outcome = finished
       ? `\nTASK FINISHED with status "${finished.status}". Files changed: ${finished.files?.join(', ') || 'none recorded'}. Commands run: ${finished.commandsRun ?? 0}, failed: ${finished.commandsFailed ?? 0}. Agent's final message: ${(finished.summary ?? '').slice(0, 900)}${facts}`
@@ -72,9 +74,11 @@ export class EventAnalyst {
       if (wrote && !finished && v.decision !== 'SPEAK' && v.speech) v.decision = 'SPEAK';
       if (wrote && !finished && v.decision !== 'SPEAK') {
         v.decision = 'SPEAK';
-        v.speech = `Edited ${[...new Set(batch.flatMap(e => (e.summary.match(/[\w./-]+\.(tsx?|jsx?|css|json|md|py|go|rs)\b/g) ?? [])))].slice(0, 4).join(', ') || 'project files'}.`;
+        const files = filesWrittenIn(batch);
+        v.speech = files.length ? `Editing ${files.slice(0, 4).join(', ')}.` : 'Codex is editing project files now.';
       }
-      if (finished && v.decision === 'SPEAK' && v.speech) v.speech = enforceVerificationClaims(v.speech, verification);
+      if (finished?.status === 'waiting') { v.decision = 'SPEAK'; v.speech = finished.question ?? v.speech; }
+      else if (finished && v.decision === 'SPEAK' && v.speech && (finished.files?.length ?? 0) > 0) v.speech = enforceVerificationClaims(v.speech, verification);
       if (v.decision === 'SPEAK' && v.speech) {
         const since = Date.now() - (this.lastSpokeAt.get(taskId) ?? 0);
         if (!finished && !hasFailure && !wrote && since < EventAnalyst.COOLDOWN_MS) {

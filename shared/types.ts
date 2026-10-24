@@ -3,6 +3,7 @@ export type TaskStatus =
   | 'running'
   | 'cancelling'
   | 'done'
+  | 'waiting'
   | 'failed'
   | 'interrupted'
   | 'cancelled';
@@ -21,6 +22,7 @@ export interface Task {
   commandsRun?: number;
   commandsFailed?: number;
   files?: string[];
+  question?: string;
   verification?: { build: 'passed' | 'failed' | 'not run'; tests: 'passed' | 'failed' | 'not run' };
   announcedAt?: number;
 }

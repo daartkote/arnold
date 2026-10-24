@@ -11,6 +11,7 @@ const statusLabel: Record<Task['status'], string> = {
   running: 'Running',
   cancelling: 'Cancelling…',
   done: 'Done',
+  waiting: 'Needs your answer',
   failed: 'Failed',
   interrupted: 'Interrupted',
   cancelled: 'Cancelled',

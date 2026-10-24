@@ -41,11 +41,13 @@ function describeTask(t: Task): string {
 function describeState(state: AppState): string {
   const active = state.tasks.find(t => t.id === state.activeTaskId);
   const queued = state.tasks.filter(t => t.status === 'queued');
-  const recent = state.tasks.filter(t => ['done', 'failed', 'interrupted', 'cancelled'].includes(t.status)).slice(-3);
+  const recent = state.tasks.filter(t => ['done', 'waiting', 'failed', 'interrupted', 'cancelled'].includes(t.status)).slice(-3);
   const research = state.research.filter(r => r.status === 'done').slice(-1);
-  const unannounced = state.tasks.filter(t => ['done', 'failed', 'interrupted'].includes(t.status) && !t.announcedAt);
+  const unannounced = state.tasks.filter(t => ['done', 'waiting', 'failed', 'interrupted'].includes(t.status) && !t.announcedAt);
+  const waiting = [...state.tasks].reverse().find(t => t.status === 'waiting');
   const lines = [
     `Provider: ${state.provider}. Queue ${state.paused ? 'PAUSED' : 'running'}.`,
+    waiting && !active ? `THE CODING AGENT IS WAITING FOR THE USER'S ANSWER to this question: "${waiting.question}" (about the task: ${waiting.text.split('\n')[0]}). If the user's latest message answers it, emit enqueue_task with text "Answer to your question: <the user's answer>. Continue the task." The speech must be a short confirmation in your own words (e.g. "Separate input it is, continuing."), never the task text itself. If the user asks what is going on, repeat the question.` : '',
     unannounced.length ? `FINISHED BUT NOT YET TOLD TO THE USER (you MUST report these first, with the concrete details):\n${unannounced.map(t => `  - ${describeTask(t)}`).join('\n')}` : '',
     active ? `Active task [${active.id}] (${active.status}, started ${Math.round((Date.now() - (active.startedAt ?? Date.now())) / 1000)}s ago): ${active.text}\nLive activity from Codex (newest last):\n${liveActivity(state)}` : 'No active task.',
     queued.length ? `Queued:\n${queued.map((t, i) => `  ${i + 1}. [${t.id}] ${t.text}`).join('\n')}` : 'Queue is empty.',
@@ -73,6 +75,7 @@ Action types:
 - {"type":"reset_project"} when the user asks to reset, revert or restore the project files to the clean baseline (git reset, discard changes). This is done by the server, never by the coding agent. Confirm in speech.
 Never enqueue destructive git operations (reset, checkout --, clean, push --force, branch -D) as a coding task; use reset_project or ask what the user means.
 - {"type":"get_status"} when the user asks what's happening; answer from the state.
+If the coding agent is waiting for an answer (see state) and the user answers, enqueue_task with the answer as described there; that continues the same agent thread.
 Chit-chat or clarifications need no actions. If the request is ambiguous, ask one short question instead of enqueueing.
 
 Transcripts come from speech recognition in a noisy room. Drop fillers and repeated words. A mis-heard word usually sounds like a term from the project vocabulary below or from the conversation so far; prefer that reading when the literal one makes no sense for this project. Write the task text as a clean engineering instruction, never quote the raw transcript. If the request still makes no sense, ask the user to repeat it instead of enqueueing.

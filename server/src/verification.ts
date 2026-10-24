@@ -2,7 +2,7 @@ import type { AgentEvent, Task } from '../../shared/types.ts';
 
 const BUILD = /\b(npm run build|pnpm build|yarn build|vite build|tsc\b|next build|cargo build|go build|mvn package|gradle build|make\b)/i;
 const TEST = /\b(npm test|npm run test|pnpm test|yarn test|vitest|jest|pytest|mocha|playwright|cypress|cargo test|go test)\b/i;
-const WRITE = /\b(sed -i|apply_patch|python3? -|cat >|tee |> src\/|>> src\/|printf .*>|echo .*>)/i;
+const WRITE = /(\bsed -i\b|\bapply_patch\b|\bpython3? -(c|\s*<<)|\bcat >|\btee\s+\S|\s>\s*\S+\.(tsx?|jsx?|css|json|md|py|go|rs|html)\b)/i;
 
 type Outcome = 'passed' | 'failed' | 'not run';
 
@@ -28,6 +28,16 @@ export function batchWritesFiles(events: AgentEvent[]): boolean {
     const item = (e.raw as { item?: { command?: string } } | undefined)?.item;
     return Boolean(item?.command && WRITE.test(item.command));
   });
+}
+
+export function filesWrittenIn(events: AgentEvent[]): string[] {
+  const out = new Set<string>();
+  for (const e of events) {
+    if (e.type !== 'item.completed:file_change') continue;
+    const item = (e.raw as { item?: { changes?: { path?: string }[] } } | undefined)?.item;
+    for (const c of item?.changes ?? []) if (c.path) out.add(c.path.split('/').slice(-2).join('/'));
+  }
+  return [...out];
 }
 
 export function describeVerification(v: Task['verification'] | undefined): string {

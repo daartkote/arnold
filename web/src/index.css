@@ -68,7 +68,7 @@ main { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 20px; align-it
 .status { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--soft); color: var(--muted); display: inline-block; letter-spacing: 0; text-transform: none; }
 .status.small { font-size: 11px; padding: 2px 8px; white-space: nowrap; }
 .status.running { background: var(--accent-soft); color: var(--accent); }
-.status.cancelling, .status.interrupted, .status.cancelled { background: var(--amber-soft); color: var(--amber); }
+.status.cancelling, .status.interrupted, .status.cancelled, .status.waiting { background: var(--amber-soft); color: var(--amber); }
 .status.done { background: var(--green-soft); color: var(--green); }
 .status.failed { background: var(--red-soft); color: var(--red); }
 .task-text { margin: 8px 0 4px; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }

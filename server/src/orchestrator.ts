@@ -79,7 +79,7 @@ export class Orchestrator extends EventEmitter {
   }
 
   unannouncedTasks(): Task[] {
-    return this.state.tasks.filter(t => ['done', 'failed', 'interrupted'].includes(t.status) && !t.announcedAt);
+    return this.state.tasks.filter(t => ['done', 'waiting', 'failed', 'interrupted'].includes(t.status) && !t.announcedAt);
   }
 
   markAnnounced(ids: string[]) {
@@ -155,7 +155,9 @@ export class Orchestrator extends EventEmitter {
       next.files = result.files;
       next.verification = verificationFor(this.state.events.filter(e => e.taskId === next.id));
       const wasCancelling = (next.status as Task['status']) === 'cancelling';
+      const asksQuestion = result.completed && result.files.length === 0 && /\?\s*$/.test(result.summary.trim());
       if (wasCancelling || !result.completed) next.status = 'interrupted';
+      else if (asksQuestion) { next.status = 'waiting'; next.question = result.summary.trim(); }
       else next.status = result.lastExitCode !== null && result.lastExitCode !== 0 ? 'failed' : 'done';
     } catch (err) {
       next.status = (next.status as Task['status']) === 'cancelling' ? 'interrupted' : 'failed';
