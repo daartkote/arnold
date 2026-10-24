@@ -1,5 +1,5 @@
 import type { AppState } from '../../shared/types.ts';
-import { gemma, parseJsonObject } from './gemma.ts';
+import { llm as gemma, parseJsonObject } from './llm.ts';
 
 export type Action =
   | { type: 'enqueue_task'; text: string }

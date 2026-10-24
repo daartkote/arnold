@@ -9,6 +9,7 @@ import { CodexAdapter } from './codexAdapter.ts';
 import { registerCustomLlm } from './customLlm.ts';
 import { EventAnalyst } from './eventAnalyst.ts';
 import { registerSettings, syncAgentTurnSettings } from './settings.ts';
+import { providers } from './llm.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const PROJECT_DIR = resolve(process.env.PROJECT_DIR ?? '../demo-project');
@@ -78,4 +79,5 @@ app.post<{ Params: { id: string } }>('/api/notifications/:id/ack', async req => 
 
 await app.listen({ port: PORT, host: '0.0.0.0' });
 app.log.info(`project dir: ${PROJECT_DIR}`);
+app.log.info(`llm chain: ${providers.map(p => p.name).join(' -> ')}`);
 syncAgentTurnSettings().then(s => app.log.info(s, 'agent turn settings synced')).catch(err => app.log.warn(err.message));

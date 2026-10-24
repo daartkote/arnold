@@ -1,5 +1,5 @@
 import type { AgentEvent, Task } from '../../shared/types.ts';
-import { gemma, parseJsonObject } from './gemma.ts';
+import { llm as gemma, parseJsonObject } from './llm.ts';
 import type { Orchestrator } from './orchestrator.ts';
 
 interface Verdict {
