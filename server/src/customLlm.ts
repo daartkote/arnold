@@ -119,6 +119,11 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
       speech = result.speech;
       orchestrator.transcript('gemma', speech, { actions: result.actions });
       if (unannouncedBefore.length) orchestrator.markAnnounced(unannouncedBefore);
+      const asksUser = /\?\s*$/.test(speech.trim()) && !/^\[notification\]/.test(lastUser);
+      if (asksUser && result.actions.some(a => a.type !== 'get_status')) {
+        app.log.info({ dropped: result.actions.map(a => a.type) }, 'agent asked a question, actions deferred');
+        result.actions = [];
+      }
       const hasSideEffects = result.actions.some(a => a.type !== 'get_status');
       if (hasSideEffects && looksCutOff(lastUser)) {
         app.log.info({ actions: result.actions.map(a => a.type) }, 'utterance looks cut off, waiting for the rest');
