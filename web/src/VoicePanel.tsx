@@ -4,29 +4,16 @@ import type { Notification } from '../../shared/types';
 import { api } from './useAppState';
 import VoiceSettings from './VoiceSettings';
 
-interface Line {
-  id: number;
-  role: 'user' | 'agent' | 'system';
-  text: string;
-}
-
 interface Props {
   agentId: string | null;
   pending: Notification[];
 }
 
 export default function VoicePanel({ agentId, pending }: Props) {
-  const [lines, setLines] = useState<Line[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const seq = useRef(0);
   const delivered = useRef(new Set<string>());
 
-  const push = (role: Line['role'], text: string) => setLines(l => [...l, { id: seq.current++, role, text }].slice(-30));
-
   const conversation = useConversation({
-    onConnect: () => push('system', 'connected'),
-    onDisconnect: () => push('system', 'disconnected'),
-    onMessage: (m: { source: string; message: string }) => push(m.source === 'user' ? 'user' : 'agent', m.message),
     onError: (e: unknown) => setError(typeof e === 'string' ? e : (e as Error)?.message ?? 'voice error'),
   });
 
@@ -44,17 +31,12 @@ export default function VoicePanel({ agentId, pending }: Props) {
     return () => { window.removeEventListener('blur', onBlur); window.removeEventListener('focus', onFocus); };
   }, []);
 
-  const lastMuted = useRef<boolean | null>(null);
   useEffect(() => {
-    if (!connected) { lastMuted.current = null; return; }
+    if (!connected) return;
     try {
       conversation.setMuted(muted);
     } catch {}
-    if (lastMuted.current !== muted) {
-      lastMuted.current = muted;
-      if (pushToTalk) push('system', muted ? 'mic off' : 'mic ON, speak now');
-    }
-  }, [muted, connected, conversation, pushToTalk]);
+  }, [muted, connected, conversation]);
 
   useEffect(() => {
     if (!connected || !pushToTalk) return;
@@ -72,7 +54,6 @@ export default function VoicePanel({ agentId, pending }: Props) {
       if (delivered.current.has(n.id)) continue;
       delivered.current.add(n.id);
       conversation.sendUserMessage(`[notification] ${n.text}`);
-      push('system', `relayed: ${n.text}`);
       api.ack(n.id);
     }
   }, [pending, connected, conversation]);
@@ -142,17 +123,7 @@ export default function VoicePanel({ agentId, pending }: Props) {
           {holding ? 'Listening… release to send' : 'Hold to talk (or hold Space)'}
         </button>
       )}
-      {lines.length === 0 && <p className="hint">Try: <q>add a search box to the tasks</q> or <q>by the way, how are tasks stored?</q></p>}
-      {lines.length > 0 && (
-        <ul className="transcript">
-          {lines.map(l => (
-            <li key={l.id} className={l.role}>
-              <span className="who">{l.role === 'user' ? 'you' : l.role === 'agent' ? 'vc' : '·'}</span>
-              <span>{l.text}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      {!connected && <p className="hint">Try: <q>add a search box to the tasks</q> or <q>by the way, how are tasks stored?</q></p>}
     </div>
   );
 }
