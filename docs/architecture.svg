@@ -124,7 +124,7 @@
   <text x="610" y="644" text-anchor="middle" fill="#b7791f" font-size="12" font-weight="600">JSONL events</text>
 
   <!-- notification arrow analyst -> browser (goes up right side) -->
-  <path d="M1120,627 L1150,627 L1150,76 L190,76 L190,100" fill="none" stroke="#b7791f" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowAmber)"/>
+  <path d="M1120,627 L1185,627 L1185,76 L190,76 L190,100" fill="none" stroke="#b7791f" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowAmber)"/>
   <rect x="560" y="60" width="300" height="30" rx="15" fill="#fdf3e1" stroke="#f3dfb8"/>
   <text x="710" y="80" text-anchor="middle" fill="#b7791f" font-size="12" font-weight="600">notification → browser → sendUserMessage → spoken</text>
 
