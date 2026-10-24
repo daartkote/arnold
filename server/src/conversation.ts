@@ -130,7 +130,8 @@ export async function converse(messages: ChatMessage[], state: AppState, memory:
   const { text, ms, model } = await gemma(prompt, { json: true, maxTokens: 400 });
   const parsed = parseJsonObject<Partial<ConversationReply>>(text);
   if (!parsed || typeof parsed.speech !== 'string') {
-    return { speech: text.slice(0, 300) || "Sorry, I didn't catch that.", actions: [] };
+    console.log(`[gemma] ${model} ${ms}ms unparseable reply: ${text.slice(0, 120).replace(/\s+/g, ' ')}`);
+    return { speech: "Sorry, say that again?", actions: [] };
   }
   let actions = Array.isArray(parsed.actions) ? (parsed.actions.filter(a => a && typeof a.type === 'string') as Action[]) : [];
   const a = parsed.analysis;
