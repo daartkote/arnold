@@ -22,7 +22,7 @@ export class EventAnalyst {
   private timer: NodeJS.Timeout | null = null;
   private lastSpokeAt = new Map<string, number>();
   readonly memory: string[] = [];
-  static readonly COOLDOWN_MS = 25000;
+  static readonly COOLDOWN_MS = 15000;
 
   constructor(private orchestrator: Orchestrator) {
     orchestrator.on('event', (e: AgentEvent) => this.onEvent(e));
@@ -77,7 +77,7 @@ export class EventAnalyst {
       if (finished && v.decision === 'SPEAK' && v.speech) v.speech = enforceVerificationClaims(v.speech, verification);
       if (v.decision === 'SPEAK' && v.speech) {
         const since = Date.now() - (this.lastSpokeAt.get(taskId) ?? 0);
-        if (!finished && !hasFailure && since < EventAnalyst.COOLDOWN_MS) {
+        if (!finished && !hasFailure && !wrote && since < EventAnalyst.COOLDOWN_MS) {
           if (v.note) this.memory.push(v.note);
           return;
         }
