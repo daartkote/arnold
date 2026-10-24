@@ -18,7 +18,7 @@ const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? process.env.GEMMA_TIMEOU
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? '';
 const GROQ_KEY = process.env.GROQ_API_KEY ?? '';
 const GROQ_MODELS = (process.env.GROQ_MODELS ?? process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b,openai/gpt-oss-120b').split(',').map(m => m.trim()).filter(Boolean);
-const GEMINI_MODELS = (process.env.GEMMA_MODELS ?? process.env.GEMMA_MODEL ?? 'gemma-4-26b-a4b-it,gemini-3.8-flash').split(',').map(m => m.trim()).filter(Boolean);
+const GEMINI_MODELS = (process.env.GEMMA_MODELS ?? process.env.GEMMA_MODEL ?? '').split(',').map(m => m.trim()).filter(Boolean);
 
 function openAiCompatible(name: string, baseUrl: string, key: string, model: string): Provider {
   return {
@@ -90,8 +90,10 @@ export async function llm(prompt: string, opts: LlmOpts = {}): Promise<LlmResult
         if (errors.length) console.log(`[llm] recovered with ${p.name} after: ${errors.join(' | ')}`);
         return { text, ms: Date.now() - t0, model: p.name };
       } catch (err) {
-        errors.push((err as Error).message);
-        if (!RETRYABLE.test((err as Error).message) || /http 429/.test((err as Error).message)) break;
+        const msg = (err as Error).message;
+        errors.push(msg);
+        if (/http 429/.test(msg)) { console.log(`[llm] ${p.name} rate limited (429), skipping to next provider`); break; }
+        if (!RETRYABLE.test(msg)) break;
       }
     }
   }
