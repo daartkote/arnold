@@ -18,6 +18,7 @@ Respond ONLY with JSON: {"decision":"SKIP"|"REMEMBER"|"SPEAK","note":string,"spe
 - SPEAK: a milestone the engineer wants to hear while it happens: Codex announced its plan or approach (once, at the start); it edited files (say which and what for); a build or test command FAILED (quote the command and the error line); it asks a question; the task finished.
 Do not SPEAK for successful verification commands (build or tests passing) in the middle of a task; the final report covers that. Exploration and lint-style commands that exit non-zero (rg, grep, ls, cat, find, git diff --check, git status) are not failures: ignore them completely, never mention them.
 Speak in first person as the engineer doing the work ("I'm adding…", "I edited…"), never "the agent announced".
+Never invent questions for the user. Only relay a question if the agent itself asked it in an agent_message.
 "speech" is 1-2 spoken sentences in the voice of a senior engineer narrating their own work: concrete file names, components, types, commands, exit codes. No markdown, no filler, no "all set" or "ready to test". Say "build passed" only if npm run build (or equivalent) exited 0 in the events; say "tests" only if a test command ran. For a finished task: what changed, in which files, and what was verified, in at most two sentences.`;
 
 export class EventAnalyst {
@@ -89,6 +90,8 @@ export class EventAnalyst {
       this.orchestrator.transcript('analyst', `${v.decision}${v.note ? `: ${v.note}` : ''}`, { reason, events: batch.length, ms, speech: v.speech });
       if (v.decision === 'REMEMBER' && v.note) this.memory.push(v.note);
       const hasFailure = batchHasVerificationFailure(batch);
+      const agentSpoke = batch.some(e => e.type === 'item.completed:agent_message');
+      if (!finished && v.decision === 'SPEAK' && /\?\s*$/.test((v.speech ?? '').trim()) && !agentSpoke) { v.decision = 'SKIP'; }
       if (wrote && !finished && v.decision !== 'SPEAK' && v.speech) v.decision = 'SPEAK';
       if (wrote && !finished && v.decision !== 'SPEAK') {
         v.decision = 'SPEAK';
