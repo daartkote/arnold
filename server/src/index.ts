@@ -32,6 +32,7 @@ const broadcast = (msg: ServerMessage) => {
 orchestrator.on('state', state => broadcast({ type: 'state', state }));
 orchestrator.on('event', event => broadcast({ type: 'event', event }));
 orchestrator.on('notification', notification => broadcast({ type: 'notification', notification }));
+orchestrator.on('transcript', entry => broadcast({ type: 'transcript', entry }));
 
 app.get('/ws', { websocket: true }, socket => {
   sockets.add(socket);

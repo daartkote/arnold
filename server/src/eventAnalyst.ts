@@ -54,6 +54,7 @@ export class EventAnalyst {
       const v = parseJsonObject<Verdict>(text);
       if (!v) return;
       console.log(`[analyst] ${reason} ${ms}ms -> ${v.decision}${v.note ? ` (${v.note.slice(0, 80)})` : ''}`);
+      this.orchestrator.transcript('analyst', `${v.decision}${v.note ? `: ${v.note}` : ''}`, { reason, events: batch.length, ms, speech: v.speech });
       if (v.decision === 'REMEMBER' && v.note) this.memory.push(v.note);
       const hasFailure = batch.some(e => {
         const item = (e.raw as { item?: { exit_code?: number } } | undefined)?.item;

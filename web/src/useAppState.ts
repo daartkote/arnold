@@ -23,6 +23,7 @@ export function useAppState(onNotification?: (n: Notification) => void) {
         if (msg.type === 'state') setState(msg.state);
         if (msg.type === 'event') setState(s => (s ? { ...s, events: [...s.events, msg.event].slice(-200) } : s));
         if (msg.type === 'notification') handler.current?.(msg.notification);
+        if (msg.type === 'transcript') setState(s => (s ? { ...s, transcript: [...s.transcript, msg.entry].slice(-300) } : s));
       };
     };
     connect();

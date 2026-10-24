@@ -20,6 +20,17 @@ export interface Task {
   summary?: string;
   commandsRun?: number;
   commandsFailed?: number;
+  announcedAt?: number;
+}
+
+export type TranscriptKind = 'user' | 'gemma' | 'codex_prompt' | 'analyst' | 'notification' | 'system';
+
+export interface TranscriptEntry {
+  id: string;
+  ts: number;
+  kind: TranscriptKind;
+  text: string;
+  meta?: Record<string, unknown>;
 }
 
 export interface AgentEvent {
@@ -56,9 +67,11 @@ export interface AppState {
   events: AgentEvent[];
   notifications: Notification[];
   research: ResearchQuery[];
+  transcript: TranscriptEntry[];
 }
 
 export type ServerMessage =
   | { type: 'state'; state: AppState }
   | { type: 'event'; event: AgentEvent }
-  | { type: 'notification'; notification: Notification };
+  | { type: 'notification'; notification: Notification }
+  | { type: 'transcript'; entry: TranscriptEntry };

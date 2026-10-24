@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import VoicePanel from './VoicePanel';
+import ConversationLog from './ConversationLog';
 import type { Task } from '../../shared/types';
 import { api, useAppState } from './useAppState';
 
@@ -145,8 +146,10 @@ export default function App() {
             </div>
           )}
 
+          <ConversationLog entries={state.transcript} />
+
           <div className="card feed">
-            <div className="label">Agent events</div>
+            <div className="label">Codex events</div>
             <ul className="events">
               {state.events.slice(-60).reverse().map(e => (
                 <li key={e.id}>

@@ -67,11 +67,16 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
     let speech: string;
     const silentTurn = !lastUser.replace(/[.\s…]/g, '').length;
     if (silentTurn) {
-      app.log.info('silent turn, no reply');
-      speech = '';
+      app.log.info('silent turn');
+      speech = orchestrator.unannouncedTasks().length ? 'Quick update.' : 'Still here.';
     } else try {
+      const isRelay = lastUser.startsWith('[notification]');
+      orchestrator.transcript(isRelay ? 'system' : 'user', isRelay ? `relayed to agent: ${lastUser.slice(14).trim()}` : lastUser);
+      const unannouncedBefore = orchestrator.unannouncedTasks().map(t => t.id);
       const result = await converse(body.messages ?? [], orchestrator.getState(), memory());
       speech = result.speech;
+      orchestrator.transcript('gemma', speech, { actions: result.actions });
+      if (unannouncedBefore.length) orchestrator.markAnnounced(unannouncedBefore);
       const hasSideEffects = result.actions.some(a => a.type !== 'get_status');
       if (hasSideEffects && isDuplicateUtterance(lastUser)) {
         app.log.info({ actions: result.actions.map(a => a.type) }, 'duplicate utterance, actions skipped');

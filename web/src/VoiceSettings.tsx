@@ -40,10 +40,10 @@ export default function VoiceSettings() {
       <label className="toggle muted" title="ElevenLabs sends the transcript to the LLM before the turn is confirmed; faster, but produces duplicate requests">
         <input type="checkbox" checked={s.speculativeTurn} disabled={busy} onChange={e => update({ speculativeTurn: e.target.checked })} /> speculative turn
       </label>
-      <label className="toggle muted" title="Seconds of silence before ElevenLabs decides your turn is over">
-        silence {timeout}s
-        <input type="range" min={1} max={20} step={1} value={timeout} disabled={busy}
-          onChange={e => setTimeoutLocal(Number(e.target.value))}
+      <label className="toggle muted" title="Seconds of silence before ElevenLabs nudges the conversation; off = agent never speaks unprompted">
+        nudge {timeout < 0 ? 'off' : `${timeout}s`}
+        <input type="range" min={0} max={20} step={1} value={timeout < 0 ? 0 : timeout} disabled={busy}
+          onChange={e => setTimeoutLocal(Number(e.target.value) === 0 ? -1 : Number(e.target.value))}
           onMouseUp={() => update({ turnTimeout: timeout })}
           onTouchEnd={() => update({ turnTimeout: timeout })}
           onKeyUp={() => update({ turnTimeout: timeout })} />

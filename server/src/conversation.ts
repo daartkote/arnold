@@ -24,8 +24,10 @@ function describeState(state: AppState): string {
   const queued = state.tasks.filter(t => t.status === 'queued');
   const recent = state.tasks.filter(t => ['done', 'failed', 'interrupted', 'cancelled'].includes(t.status)).slice(-3);
   const research = state.research.filter(r => r.status === 'done').slice(-1);
+  const unannounced = state.tasks.filter(t => ['done', 'failed', 'interrupted'].includes(t.status) && !t.announcedAt);
   const lines = [
     `Provider: ${state.provider}. Queue ${state.paused ? 'PAUSED' : 'running'}.`,
+    unannounced.length ? `FINISHED BUT NOT YET TOLD TO THE USER (you MUST mention these in your reply, briefly, before anything else):\n${unannounced.map(t => `  - ${t.status}: ${t.text} => ${(t.summary ?? '').slice(0, 300)} (commands run: ${t.commandsRun ?? 0}, failed: ${t.commandsFailed ?? 0})`).join('\n')}` : '',
     active ? `Active task [${active.id}] (${active.status}): ${active.text}` : 'No active task.',
     queued.length ? `Queued:\n${queued.map((t, i) => `  ${i + 1}. [${t.id}] ${t.text}`).join('\n')}` : 'Queue is empty.',
     recent.length ? `Recent results:\n${recent.map(t => `  - ${t.status}: ${t.text} => ${(t.summary ?? '').slice(0, 200)}`).join('\n')}` : '',
@@ -48,7 +50,8 @@ Action types:
 - {"type":"resume"} when the user wants to continue the paused queue.
 - {"type":"get_status"} when the user asks what's happening; answer from the state.
 Chit-chat or clarifications need no actions. If the request is ambiguous, ask one short question instead of enqueueing.
-If the state lists pending notifications and the latest user message is a notification relay (starts with [notification]), announce it in one sentence truthfully.`;
+If the state lists pending notifications and the latest user message is a notification relay (starts with [notification]), announce it in one sentence truthfully.
+When the user asks what was done or whether something is finished, answer from "Recent results" and the finished-tasks list; those are authoritative.`;
 
 export async function converse(messages: ChatMessage[], state: AppState, memory: string[] = []): Promise<ConversationReply> {
   const history = messages

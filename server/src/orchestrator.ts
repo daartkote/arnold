@@ -1,10 +1,11 @@
 import { EventEmitter } from 'node:events';
 import { nanoid } from 'nanoid';
-import type { AgentEvent, AppState, Notification, ResearchQuery, Task, TaskSource } from '../../shared/types.ts';
+import type { AgentEvent, AppState, Notification, ResearchQuery, Task, TaskSource, TranscriptEntry, TranscriptKind } from '../../shared/types.ts';
 import type { AgentAdapter } from './adapter.ts';
 import { EventLog } from './store.ts';
 
 const MAX_EVENTS = 200;
+const MAX_TRANSCRIPT = 300;
 
 export class Orchestrator extends EventEmitter {
   private state: AppState;
@@ -23,6 +24,7 @@ export class Orchestrator extends EventEmitter {
       events: [],
       notifications: [],
       research: [],
+      transcript: [],
     };
   }
 
@@ -34,10 +36,30 @@ export class Orchestrator extends EventEmitter {
     this.emit('state', this.state);
   }
 
+  transcript(kind: TranscriptKind, text: string, meta?: Record<string, unknown>): TranscriptEntry {
+    const entry: TranscriptEntry = { id: nanoid(8), ts: Date.now(), kind, text, ...(meta ? { meta } : {}) };
+    this.state.transcript.push(entry);
+    if (this.state.transcript.length > MAX_TRANSCRIPT) this.state.transcript.splice(0, this.state.transcript.length - MAX_TRANSCRIPT);
+    this.log.appendTranscript(entry);
+    this.emit('transcript', entry);
+    return entry;
+  }
+
+  unannouncedTasks(): Task[] {
+    return this.state.tasks.filter(t => ['done', 'failed', 'interrupted'].includes(t.status) && !t.announcedAt);
+  }
+
+  markAnnounced(ids: string[]) {
+    const now = Date.now();
+    for (const t of this.state.tasks) if (ids.includes(t.id)) t.announcedAt = now;
+    this.publish();
+  }
+
   enqueue(text: string, source: TaskSource): Task {
     const task: Task = { id: nanoid(8), text, status: 'queued', source, createdAt: Date.now() };
     this.state.tasks.push(task);
     this.log.append({ kind: 'task', task });
+    this.transcript('codex_prompt', text, { taskId: task.id, source });
     this.publish();
     void this.pump();
     return task;
@@ -122,6 +144,7 @@ export class Orchestrator extends EventEmitter {
   notify(taskId: string, text: string): Notification {
     const notification: Notification = { id: nanoid(8), taskId, ts: Date.now(), text };
     this.state.notifications.push(notification);
+    this.transcript('notification', text, { taskId });
     this.emit('notification', notification);
     this.publish();
     return notification;

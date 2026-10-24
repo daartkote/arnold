@@ -73,3 +73,14 @@ button.ghost { background: transparent; border-color: transparent; color: var(--
 .ptt.active { background: var(--ok); color: #0b1a10; border-style: solid; border-color: transparent; }
 .settings { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 8px 0 10px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
 .settings input[type=range] { width: 110px; accent-color: var(--accent); }
+.translog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow: auto; }
+.translog li { display: flex; gap: 10px; align-items: baseline; font-size: 13px; }
+.translog li.gemma .grow { color: var(--accent); }
+.translog li.codex_prompt .grow { color: var(--ok); }
+.translog li.analyst .grow, .translog li.system .grow { color: var(--muted); }
+.translog li.notification .grow { color: var(--warn); }
+.translog .actions { color: var(--muted); font-size: 12px; }
+.pill.who-gemma { border-color: var(--accent); color: var(--accent); }
+.pill.who-codex_prompt { border-color: var(--ok); color: var(--ok); }
+.pill.who-notification { border-color: var(--warn); color: var(--warn); }
+.card.log .label { margin-bottom: 8px; }

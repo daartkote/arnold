@@ -6,7 +6,7 @@ export interface VoiceSettings {
   dryRun: boolean;
 }
 
-export const settings: VoiceSettings = { speculativeTurn: false, turnTimeout: 10, dryRun: false };
+export const settings: VoiceSettings = { speculativeTurn: false, turnTimeout: -1, dryRun: false };
 
 const KEY = process.env.ELEVENLABS_API_KEY ?? '';
 const AGENT = process.env.ELEVENLABS_AGENT_ID ?? '';
@@ -35,7 +35,7 @@ export function registerSettings(app: FastifyInstance) {
     const touchesAgent = b.speculativeTurn !== undefined || b.turnTimeout !== undefined;
     if (typeof b.dryRun === 'boolean') settings.dryRun = b.dryRun;
     if (typeof b.speculativeTurn === 'boolean') settings.speculativeTurn = b.speculativeTurn;
-    if (typeof b.turnTimeout === 'number' && b.turnTimeout >= 1 && b.turnTimeout <= 30) settings.turnTimeout = b.turnTimeout;
+    if (typeof b.turnTimeout === 'number' && (b.turnTimeout === -1 || (b.turnTimeout >= 1 && b.turnTimeout <= 30))) settings.turnTimeout = b.turnTimeout;
     if (touchesAgent) {
       try {
         await syncAgentTurnSettings();
