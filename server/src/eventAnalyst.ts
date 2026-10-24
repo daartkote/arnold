@@ -55,8 +55,15 @@ export class EventAnalyst {
       if (!v) return;
       console.log(`[analyst] ${reason} ${ms}ms -> ${v.decision}${v.note ? ` (${v.note.slice(0, 80)})` : ''}`);
       if (v.decision === 'REMEMBER' && v.note) this.memory.push(v.note);
+      const hasFailure = batch.some(e => {
+        const item = (e.raw as { item?: { exit_code?: number } } | undefined)?.item;
+        return typeof item?.exit_code === 'number' && item.exit_code !== 0;
+      });
       if (v.decision === 'SPEAK' && v.speech) {
-        if (!finished && this.spokenFor.has(taskId)) return;
+        if (!finished && (!hasFailure || this.spokenFor.has(taskId))) {
+          if (v.note) this.memory.push(v.note);
+          return;
+        }
         this.spokenFor.add(taskId);
         this.orchestrator.notify(taskId, v.speech);
       }
