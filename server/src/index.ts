@@ -5,12 +5,14 @@ import { resolve } from 'node:path';
 import type { ServerMessage } from '../../shared/types.ts';
 import { Orchestrator } from './orchestrator.ts';
 import { FakeAdapter } from './fakeAdapter.ts';
+import { CodexAdapter } from './codexAdapter.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const PROJECT_DIR = resolve(process.env.PROJECT_DIR ?? '../demo-project');
 const DATA_DIR = resolve(process.env.DATA_DIR ?? './data');
 
-const orchestrator = new Orchestrator(new FakeAdapter(), PROJECT_DIR, DATA_DIR);
+const adapter = process.env.PROVIDER === 'fake' ? new FakeAdapter() : new CodexAdapter(process.env.CODEX_MODEL);
+const orchestrator = new Orchestrator(adapter, PROJECT_DIR, DATA_DIR);
 
 const app = Fastify({ logger: { level: 'info' } });
 await app.register(cors, { origin: true });
