@@ -17,6 +17,7 @@ export type Action =
 export interface Analysis {
   complete: boolean;
   intent: 'task' | 'question_about_code' | 'status' | 'control' | 'answer' | 'confirm' | 'reject' | 'chitchat' | 'unclear';
+  language: string;
   understood: string;
   gaps: string[];
   confidence: number;
@@ -78,10 +79,11 @@ Ground everything in the state below. About the agent's work: if Codex has not r
 When asked what is happening, narrate the live activity: what Codex just said it is doing, which files it edited, what command is running and whether it passed.
 
 You respond ONLY with one JSON object, fields in this order:
-{"analysis": {"complete": boolean, "intent": "task"|"question_about_code"|"status"|"control"|"answer"|"confirm"|"reject"|"chitchat"|"unclear", "understood": string, "gaps": string[], "confidence": number}, "speech": string, "actions": Action[]}
+{"analysis": {"complete": boolean, "intent": "task"|"question_about_code"|"status"|"control"|"answer"|"confirm"|"reject"|"chitchat"|"unclear", "language": string, "understood": string, "gaps": string[], "confidence": number}, "speech": string, "actions": Action[]}
 Fill "analysis" FIRST and derive speech and actions from it:
 - complete: is the latest user utterance a finished thought? Speech recognition often cuts sentences; "add tags and" or "make the list" are not complete.
 - intent: "confirm" when a proposed task is awaiting confirmation and the user agrees in any wording (yes, go, do it, sounds good, let's try…); "reject" when they decline or want to drop it. Use these only while a proposal is pending.
+- language: the language of the user's latest message (e.g. "en", "ru"). The "speech" MUST be written in that language. Task texts for the coding agent are always in English.
 - understood: one line, what the user wants, in your words.
 - gaps: decisions ONLY THE USER can make: behaviour, UX placement, what happens to existing data, scope. Never facts about the codebase ("where is the header", "which file", "which component", "what framework"): the coding agent reads the code and finds those itself. Empty if none, or if the user said "you decide".
 - confidence: 0 to 1 that you understood correctly.
@@ -128,7 +130,7 @@ export async function converse(messages: ChatMessage[], state: AppState, memory:
   let actions = Array.isArray(parsed.actions) ? (parsed.actions.filter(a => a && typeof a.type === 'string') as Action[]) : [];
   const a = parsed.analysis;
   const analysis: Analysis | undefined = a && typeof a === 'object'
-    ? { complete: a.complete !== false, intent: a.intent ?? 'unclear', understood: String(a.understood ?? ''), gaps: Array.isArray(a.gaps) ? a.gaps.map(String) : [], confidence: typeof a.confidence === 'number' ? a.confidence : 1 }
+    ? { complete: a.complete !== false, intent: a.intent ?? 'unclear', language: String(a.language ?? 'en'), understood: String(a.understood ?? ''), gaps: Array.isArray(a.gaps) ? a.gaps.map(String) : [], confidence: typeof a.confidence === 'number' ? a.confidence : 1 }
     : undefined;
   if (analysis) analysis.gaps = analysis.gaps.filter(g => !/\b(where|which|what)\b.*\b(file|component|folder|directory|module|framework|library|located|defined|stored in the code)\b/i.test(g) && !/\blocat/i.test(g));
   let speech = parsed.speech;
@@ -138,6 +140,6 @@ export async function converse(messages: ChatMessage[], state: AppState, memory:
     else if (analysis.confidence < 0.6 && sideEffects.length) { actions = []; if (!speech.trim().endsWith('?')) speech = `I understood: ${analysis.understood}. Is that right?`; }
     else if (analysis.intent === 'task' && analysis.gaps.length && sideEffects.some(x => x.type === 'enqueue_task')) { actions = []; if (!speech.trim().endsWith('?')) speech = `Quick question first: ${analysis.gaps[0]}?`; }
   }
-  console.log(`[gemma] ${model} ${ms}ms intent=${analysis?.intent ?? '-'} complete=${analysis?.complete ?? '-'} conf=${analysis?.confidence ?? '-'} gaps=${analysis?.gaps.length ?? '-'} actions=${actions.map(x => x.type).join(',') || 'none'}`);
+  console.log(`[gemma] ${model} ${ms}ms lang=${analysis?.language ?? '-'} intent=${analysis?.intent ?? '-'} complete=${analysis?.complete ?? '-'} conf=${analysis?.confidence ?? '-'} gaps=${analysis?.gaps.length ?? '-'} actions=${actions.map(x => x.type).join(',') || 'none'}`);
   return { analysis, speech, actions };
 }
