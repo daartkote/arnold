@@ -12,6 +12,17 @@ function normalize(s: string) {
 
 const CUT_OFF = /\b(and|with|then|or|to|the|a|an|of|for|but|also|plus|that|which|so)\s*[,.…]*\s*$/i;
 
+const AFFIRMATIVE = /^\W*(yes|yeah|yep|yup|sure|ok|okay|go|go ahead|start|do it|please do|correct|right|confirm|confirmed|begin|let'?s go|proceed|sounds good|perfect|exactly)\b[\w\s,.!']{0,24}$/i;
+const NEGATIVE = /^\W*(no|nope|cancel|drop it|never ?mind|forget it|don'?t|not now|wait)\b[\w\s,.!']{0,24}$/i;
+
+export function isAffirmative(text: string): boolean {
+  return AFFIRMATIVE.test(text.trim());
+}
+
+export function isNegative(text: string): boolean {
+  return NEGATIVE.test(text.trim());
+}
+
 export function looksCutOff(text: string): boolean {
   return CUT_OFF.test(text.trim()) || /,\s*$/.test(text.trim());
 }
@@ -115,6 +126,13 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
       orchestrator.markAnnounced(orchestrator.unannouncedTasks().map(t => t.id));
       orchestrator.transcript('system', `spoken verbatim: ${text}`, { delivered: Boolean(matched) });
       speech = text;
+    } else if (orchestrator.getState().proposal && (isAffirmative(lastUser) || isNegative(lastUser))) {
+      orchestrator.transcript('user', lastUser);
+      const yes = isAffirmative(lastUser);
+      const notes = await applyActions([{ type: yes ? 'confirm_task' : 'reject_task' }], orchestrator);
+      app.log.info({ notes }, yes ? 'proposal confirmed by user' : 'proposal rejected by user');
+      speech = yes ? (notes.some(n => n.startsWith('duplicate')) ? 'That one is already in progress.' : 'Starting now.') : 'Dropped it.';
+      orchestrator.transcript('gemma', speech, { actions: [{ type: yes ? 'confirm_task' : 'reject_task' }] });
     } else try {
       orchestrator.transcript('user', lastUser);
       const unannouncedBefore = orchestrator.unannouncedTasks().map(t => t.id);
