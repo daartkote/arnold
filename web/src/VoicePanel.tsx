@@ -22,15 +22,6 @@ export default function VoicePanel({ agentId, pending }: Props) {
   const [holding, setHolding] = useState(false);
   const muted = connected && pushToTalk && !holding;
 
-  const [iframeFocused, setIframeFocused] = useState(false);
-  useEffect(() => {
-    const onBlur = () => setTimeout(() => setIframeFocused(document.activeElement?.tagName === 'IFRAME'), 0);
-    const onFocus = () => setIframeFocused(false);
-    window.addEventListener('blur', onBlur);
-    window.addEventListener('focus', onFocus);
-    return () => { window.removeEventListener('blur', onBlur); window.removeEventListener('focus', onFocus); };
-  }, []);
-
   useEffect(() => {
     if (!connected) return;
     try {
@@ -104,18 +95,12 @@ export default function VoicePanel({ agentId, pending }: Props) {
           </div>
         </div>
       </div>
-      <VoiceSettings />
-      {connected && (
-        <div className="settings" style={{ marginTop: 10, paddingTop: 0, borderTop: 0 }}>
-          <label className="tog">
-            <input type="checkbox" checked={pushToTalk} onChange={e => setPushToTalk(e.target.checked)} /><span className="switch" /> Push-to-talk
-          </label>
-        </div>
-      )}
+      <VoiceSettings>
+        <label className="tog" title="Mic stays closed unless you hold Space or the button">
+          <input type="checkbox" checked={pushToTalk} onChange={e => setPushToTalk(e.target.checked)} /><span className="switch" /> Push-to-talk
+        </label>
+      </VoiceSettings>
       {error && <p className="error">{error}</p>}
-      {connected && pushToTalk && iframeFocused && (
-        <p className="error">The project preview has keyboard focus. Click here or hold the button below, Space will not work until you do.</p>
-      )}
       {connected && pushToTalk && (
         <button
           className={`ptt ${holding ? 'active' : ''}`}

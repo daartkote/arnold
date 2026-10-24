@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 interface Settings {
   speculativeTurn: boolean;
@@ -6,7 +6,7 @@ interface Settings {
   dryRun: boolean;
 }
 
-export default function VoiceSettings() {
+export default function VoiceSettings({ children }: { children?: ReactNode }) {
   const [s, setS] = useState<Settings | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -30,10 +30,11 @@ export default function VoiceSettings() {
     }
   };
 
-  if (!s) return null;
+  if (!s) return <div className="settings">{children}</div>;
 
   return (
     <div className="settings">
+      {children}
       <label className="tog" title="Execute no actions; the agent only says what it would do">
         <input type="checkbox" checked={s.dryRun} disabled={busy} onChange={e => update({ dryRun: e.target.checked })} /><span className="switch" /> Dry run
       </label>
