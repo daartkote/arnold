@@ -35,12 +35,26 @@ export default function VoicePanel({ agentId, pending }: Props) {
   const [holding, setHolding] = useState(false);
   const muted = connected && pushToTalk && !holding;
 
+  const [iframeFocused, setIframeFocused] = useState(false);
   useEffect(() => {
-    if (!connected) return;
+    const onBlur = () => setTimeout(() => setIframeFocused(document.activeElement?.tagName === 'IFRAME'), 0);
+    const onFocus = () => setIframeFocused(false);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    return () => { window.removeEventListener('blur', onBlur); window.removeEventListener('focus', onFocus); };
+  }, []);
+
+  const lastMuted = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!connected) { lastMuted.current = null; return; }
     try {
       conversation.setMuted(muted);
     } catch {}
-  }, [muted, connected, conversation]);
+    if (lastMuted.current !== muted) {
+      lastMuted.current = muted;
+      if (pushToTalk) push('system', muted ? 'mic off' : 'mic ON, speak now');
+    }
+  }, [muted, connected, conversation, pushToTalk]);
 
   useEffect(() => {
     if (!connected || !pushToTalk) return;
@@ -95,6 +109,9 @@ export default function VoicePanel({ agentId, pending }: Props) {
       </div>
       <VoiceSettings />
       {error && <p className="error">{error}</p>}
+      {connected && pushToTalk && iframeFocused && (
+        <p className="error">The project preview has keyboard focus. Click here or hold the button below, Space will not work until you do.</p>
+      )}
       {connected && pushToTalk && (
         <button
           className={`ptt ${holding ? 'active' : ''}`}
