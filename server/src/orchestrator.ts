@@ -112,6 +112,21 @@ export class Orchestrator extends EventEmitter {
     this.publish();
   }
 
+  waitingTask(): Task | undefined {
+    return [...this.state.tasks].reverse().find(t => t.status === 'waiting');
+  }
+
+  answerWaiting(text: string): Task | null {
+    const w = this.waitingTask();
+    if (!w) return null;
+    w.status = 'done';
+    w.summary = `${w.question ?? 'Question'} → answered.`;
+    w.announcedAt = Date.now();
+    this.state.proposal = null;
+    this.transcript('system', `answer sent to the waiting agent: ${text.slice(0, 120)}`);
+    return this.enqueue(text, 'voice');
+  }
+
   confirmProposal(): Task | null {
     const p = this.state.proposal;
     if (!p) return null;

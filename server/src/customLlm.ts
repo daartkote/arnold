@@ -43,6 +43,11 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
       case 'enqueue_task': {
         const text = a.text?.trim();
         if (!text) break;
+        if (orchestrator.waitingTask() && !orchestrator.getState().activeTaskId) {
+          const t = orchestrator.answerWaiting(text);
+          notes.push(`answer → continues thread as ${t?.id}`);
+          break;
+        }
         orchestrator.propose(text);
         notes.push('proposed');
         break;
