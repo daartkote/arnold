@@ -1,6 +1,25 @@
 import type { FastifyInstance } from 'fastify';
 import type { Orchestrator } from './orchestrator.ts';
 import { converse, type Action } from './conversation.ts';
+import { settings } from './settings.ts';
+
+const DEDUP_WINDOW_MS = 10000;
+let lastActed = { text: '', at: 0 };
+
+function normalize(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9а-яё ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export function isDuplicateUtterance(text: string, now = Date.now()): boolean {
+  const n = normalize(text);
+  if (!n || now - lastActed.at > DEDUP_WINDOW_MS) return false;
+  const prev = lastActed.text;
+  return n === prev || n.startsWith(prev) || prev.startsWith(n);
+}
+
+function markActed(text: string, now = Date.now()) {
+  lastActed = { text: normalize(text), at: now };
+}
 
 interface ChatRequest {
   model?: string;
@@ -49,8 +68,16 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
     try {
       const result = await converse(body.messages ?? [], orchestrator.getState(), memory());
       speech = result.speech;
-      const notes = await applyActions(result.actions, orchestrator);
-      if (notes.length) app.log.info({ notes }, 'actions applied');
+      const hasSideEffects = result.actions.some(a => a.type !== 'get_status');
+      if (hasSideEffects && isDuplicateUtterance(lastUser)) {
+        app.log.info({ actions: result.actions.map(a => a.type) }, 'duplicate utterance, actions skipped');
+      } else if (hasSideEffects && settings.dryRun) {
+        app.log.info({ actions: result.actions }, 'dry run, actions not executed');
+        speech = `${speech} (Dry run: I would ${result.actions.map(a => a.type.replace('_', ' ')).join(' and ')}.)`;
+      } else {
+        const notes = await applyActions(result.actions, orchestrator);
+        if (notes.length) { app.log.info({ notes }, 'actions applied'); markActed(lastUser); }
+      }
     } catch (err) {
       app.log.error(err);
       speech = 'Sorry, my language model hiccuped. Say that again?';

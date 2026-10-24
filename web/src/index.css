@@ -71,3 +71,5 @@ button.ghost { background: transparent; border-color: transparent; color: var(--
 .toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .ptt { width: 100%; padding: 16px; margin: 6px 0 10px; font-weight: 600; border-radius: 12px; background: var(--panel-2); border: 1px dashed var(--border); user-select: none; -webkit-user-select: none; }
 .ptt.active { background: var(--ok); color: #0b1a10; border-style: solid; border-color: transparent; }
+.settings { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 8px 0 10px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.settings input[type=range] { width: 110px; accent-color: var(--accent); }

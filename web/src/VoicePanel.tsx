@@ -2,6 +2,7 @@ import { useConversation } from '@elevenlabs/react';
 import { useEffect, useRef, useState } from 'react';
 import type { Notification } from '../../shared/types';
 import { api } from './useAppState';
+import VoiceSettings from './VoiceSettings';
 
 interface Line {
   id: number;
@@ -92,6 +93,7 @@ export default function VoicePanel({ agentId, pending }: Props) {
           )}
         </div>
       </div>
+      <VoiceSettings />
       {error && <p className="error">{error}</p>}
       {connected && pushToTalk && (
         <button

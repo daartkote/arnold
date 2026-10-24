@@ -8,6 +8,7 @@ import { FakeAdapter } from './fakeAdapter.ts';
 import { CodexAdapter } from './codexAdapter.ts';
 import { registerCustomLlm } from './customLlm.ts';
 import { EventAnalyst } from './eventAnalyst.ts';
+import { registerSettings, syncAgentTurnSettings } from './settings.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const PROJECT_DIR = resolve(process.env.PROJECT_DIR ?? '../demo-project');
@@ -21,6 +22,7 @@ const app = Fastify({ logger: { level: 'info' } });
 await app.register(cors, { origin: true });
 await app.register(websocket);
 registerCustomLlm(app, orchestrator, process.env.CUSTOM_LLM_SECRET, () => analyst.memory);
+registerSettings(app);
 
 const sockets = new Set<{ send(data: string): void }>();
 const broadcast = (msg: ServerMessage) => {
@@ -75,3 +77,4 @@ app.post<{ Params: { id: string } }>('/api/notifications/:id/ack', async req => 
 
 await app.listen({ port: PORT, host: '0.0.0.0' });
 app.log.info(`project dir: ${PROJECT_DIR}`);
+syncAgentTurnSettings().then(s => app.log.info(s, 'agent turn settings synced')).catch(err => app.log.warn(err.message));
