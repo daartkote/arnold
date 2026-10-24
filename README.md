@@ -34,7 +34,13 @@ The hackathon hall was loud and the microphone was cheap, so a few things are bu
 
 ## Architecture
 
-![VoiceCode architecture](docs/architecture.svg)
+Components and the interfaces between them. Solid boxes exist today, dashed ones plug into the same contract.
+
+![VoiceCode components](docs/architecture.svg)
+
+### How a request flows
+
+![VoiceCode flow](docs/flow.svg)
 
 <details>
 <summary>Text version</summary>

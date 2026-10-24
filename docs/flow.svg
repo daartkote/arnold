@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="740" viewBox="0 0 1200 740" font-family="Manrope, Inter, -apple-system, Segoe UI, sans-serif" font-size="14">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1d1c19"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7a776f"/></marker>
+    <filter id="s" x="-5%" y="-5%" width="110%" height="125%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#14120a" flood-opacity="0.10"/></filter>
+    <style>
+      .box { fill: #ffffff; stroke: #e7e4dc; }
+      .num { font-weight: 800; font-size: 13px; fill: #ffffff; }
+      .h { font-weight: 700; fill: #1d1c19; font-size: 15px; }
+      .p { fill: #7a776f; font-size: 12.5px; }
+      .q { fill: #1d1c19; font-size: 13px; font-style: italic; }
+      .mono { font-family: "JetBrains Mono", Menlo, monospace; font-size: 11.5px; fill: #1d1c19; }
+      .lbl { font-size: 12px; font-weight: 700; fill: #7a776f; letter-spacing: 1.5px; }
+      .chip { fill: #f1efe9; stroke: #e7e4dc; }
+      .chipt { font-size: 12px; font-weight: 600; fill: #1d1c19; }
+      .today { fill: #1d1c19; stroke: #1d1c19; }
+      .todayt { font-size: 12px; font-weight: 600; fill: #ffffff; }
+    </style>
+  </defs>
+  <rect width="1200" height="740" fill="#f6f5f1"/>
+
+  <text x="40" y="42" font-size="22" font-weight="800" fill="#1d1c19">VoiceCode · one loop: you speak, the code changes, you hear what changed</text>
+  <text x="40" y="64" fill="#7a776f">Top row: your request on its way to the code. Middle row: the result on its way back. Bottom: the parts you can swap.</text>
+
+  <!-- ===== REQUEST ROW ===== -->
+  <text x="40" y="104" class="lbl">REQUEST →</text>
+
+  <g filter="url(#s)"><rect x="40" y="116" width="190" height="120" rx="14" class="box"/></g>
+  <circle cx="62" cy="138" r="11" fill="#1d1c19"/><text x="62" y="142.5" text-anchor="middle" class="num">1</text>
+  <text x="82" y="143" class="h">You say</text>
+  <text x="56" y="168" class="p">headset, push-to-talk</text>
+  <text x="56" y="194" class="q">"Add tags to tasks and</text>
+  <text x="56" y="212" class="q">let me filter by tag."</text>
+  <line x1="230" y1="176" x2="272" y2="176" stroke="#1d1c19" stroke-width="2" marker-end="url(#a)"/>
+
+  <g filter="url(#s)"><rect x="274" y="116" width="190" height="120" rx="14" class="box"/></g>
+  <circle cx="296" cy="138" r="11" fill="#1d1c19"/><text x="296" y="142.5" text-anchor="middle" class="num">2</text>
+  <text x="316" y="143" class="h">Voice platform</text>
+  <text x="290" y="168" class="p">speech → text</text>
+  <text x="290" y="186" class="p">turn-taking, interruption</text>
+  <text x="290" y="212" class="p">calls our server as its LLM</text>
+  <line x1="464" y1="176" x2="506" y2="176" stroke="#1d1c19" stroke-width="2" marker-end="url(#a)"/>
+
+  <g filter="url(#s)"><rect x="508" y="116" width="216" height="120" rx="14" fill="#e8efff" stroke="#cfdcff"/></g>
+  <circle cx="530" cy="138" r="11" fill="#2f6df6"/><text x="530" y="142.5" text-anchor="middle" class="num">3</text>
+  <text x="550" y="143" class="h" style="fill:#2f6df6">LLM decides</text>
+  <text x="524" y="168" class="p">sees queue state + live agent log</text>
+  <text x="524" y="190" class="mono">{"speech": "Got it…",</text>
+  <text x="524" y="206" class="mono"> "actions": [enqueue_task]}</text>
+  <text x="524" y="226" class="p">intent only, never shell commands</text>
+  <line x1="724" y1="176" x2="766" y2="176" stroke="#1d1c19" stroke-width="2" marker-end="url(#a)"/>
+
+  <g filter="url(#s)"><rect x="768" y="116" width="190" height="120" rx="14" class="box"/></g>
+  <circle cx="790" cy="138" r="11" fill="#1d1c19"/><text x="790" y="142.5" text-anchor="middle" class="num">4</text>
+  <text x="810" y="143" class="h">Orchestrator</text>
+  <text x="784" y="168" class="p">validates the action</text>
+  <text x="784" y="186" class="p">FIFO queue, one active run</text>
+  <text x="784" y="204" class="p">status from exit codes only</text>
+  <rect x="784" y="212" width="160" height="18" rx="9" fill="#fdecec" stroke="#f6caca"/>
+  <text x="864" y="225" text-anchor="middle" font-size="10" font-weight="700" fill="#e5484d">■ STOP BUTTON → HERE, NO MODEL</text>
+  <line x1="958" y1="176" x2="1000" y2="176" stroke="#1d1c19" stroke-width="2" marker-end="url(#a)"/>
+
+  <g filter="url(#s)"><rect x="1002" y="116" width="158" height="120" rx="14" fill="#e3f5ec" stroke="#c6ead6"/></g>
+  <circle cx="1024" cy="138" r="11" fill="#1fa463"/><text x="1024" y="142.5" text-anchor="middle" class="num">5</text>
+  <text x="1044" y="143" class="h" style="fill:#1fa463">Agent works</text>
+  <text x="1018" y="168" class="p">edits the real project</text>
+  <text x="1018" y="186" class="p">one thread across tasks</text>
+  <text x="1018" y="212" class="p">emits structured events</text>
+
+  <path d="M1081,236 L1081,300" fill="none" stroke="#1d1c19" stroke-width="2" marker-end="url(#a)"/>
+  <text x="1092" y="272" class="p">every event</text>
+
+  <!-- ===== RESULT ROW ===== -->
+  <text x="40" y="288" class="lbl">← RESULT</text>
+
+  <g filter="url(#s)"><rect x="880" y="302" width="280" height="120" rx="14" fill="#fdf3e1" stroke="#f3dfb8"/></g>
+  <circle cx="902" cy="324" r="11" fill="#b7791f"/><text x="902" y="328.5" text-anchor="middle" class="num">6</text>
+  <text x="922" y="329" class="h" style="fill:#b7791f">Event analyst (LLM)</text>
+  <text x="896" y="354" class="p">reads every batch of agent events</text>
+  <text x="896" y="372" class="p">SKIP noise · REMEMBER facts · SPEAK milestones</text>
+  <text x="896" y="398" class="p">plan, files edited, build exit code, done</text>
+  <line x1="880" y1="362" x2="838" y2="362" stroke="#1d1c19" stroke-width="2" marker-end="url(#a)"/>
+
+  <g filter="url(#s)"><rect x="620" y="302" width="216" height="120" rx="14" class="box"/></g>
+  <circle cx="642" cy="324" r="11" fill="#1d1c19"/><text x="642" y="328.5" text-anchor="middle" class="num">7</text>
+  <text x="662" y="329" class="h">Notification</text>
+  <text x="636" y="354" class="p">server → browser → voice platform</text>
+  <text x="636" y="372" class="p">as a new turn, so the agent</text>
+  <text x="636" y="390" class="p">phrases it in its own voice</text>
+  <text x="636" y="412" class="p">waits while you are talking</text>
+  <line x1="620" y1="362" x2="578" y2="362" stroke="#1d1c19" stroke-width="2" marker-end="url(#a)"/>
+
+  <g filter="url(#s)"><rect x="300" y="302" width="276" height="120" rx="14" class="box"/></g>
+  <circle cx="322" cy="324" r="11" fill="#1d1c19"/><text x="322" y="328.5" text-anchor="middle" class="num">8</text>
+  <text x="342" y="329" class="h">You hear</text>
+  <text x="316" y="356" class="q">"Tags are done. Changes in App.tsx and</text>
+  <text x="316" y="374" class="q">App.css, npm run build exited 0."</text>
+  <text x="316" y="400" class="p">only claims an exit code can back up</text>
+
+  <path d="M300,362 L135,362 L135,238" fill="none" stroke="#1d1c19" stroke-width="2" marker-end="url(#a)"/>
+  <text x="150" y="330" class="p">…and you say the next thing</text>
+
+  <!-- "by the way" note, attached to 5/6 -->
+  <text x="40" y="440" class="p">"By the way, how are tasks stored?" starts a second, read-only agent in parallel (step 5), the coding run never pauses; the answer comes back through step 7.</text>
+
+  <!-- ===== SWAPPABLE PARTS ===== -->
+  <text x="40" y="490" class="lbl">SWAPPABLE THROUGH INTERFACES · the loop above never knows which one is plugged in</text>
+
+
+  <!-- Voice platform -->
+  <g filter="url(#s)"><rect x="40" y="504" width="310" height="150" rx="14" class="box"/></g>
+  <text x="60" y="532" class="h">Voice platform · for step 2</text>
+  <text x="60" y="552" class="p">interface: an OpenAI-format chat endpoint</text>
+  <text x="60" y="568" class="p">our server exposes /v1/chat/completions</text>
+  <rect x="60" y="586" width="140" height="24" rx="12" class="today"/><text x="130" y="602" text-anchor="middle" class="todayt">ElevenLabs · today</text>
+  <rect x="60" y="616" width="262" height="24" rx="12" class="chip"/><text x="191" y="632" text-anchor="middle" class="chipt">any voice agent with a custom LLM hook</text>
+
+  <!-- LLM providers -->
+  <g filter="url(#s)"><rect x="380" y="504" width="450" height="150" rx="14" fill="#e8efff" stroke="#cfdcff"/></g>
+  <text x="400" y="532" class="h" style="fill:#2f6df6">LLM provider · for steps 3 and 6</text>
+  <text x="400" y="552" class="p">interface: prompt in, JSON out. No tool calling required,</text>
+  <text x="400" y="568" class="p">so any instruction-following model fits. Fallback chain, one env var.</text>
+  <rect x="400" y="586" width="196" height="24" rx="12" class="today"/><text x="498" y="602" text-anchor="middle" class="todayt">gpt-oss-20b on Groq · today</text>
+  <rect x="604" y="586" width="84" height="24" rx="12" class="chip"/><text x="646" y="602" text-anchor="middle" class="chipt">Gemma 4</text>
+  <rect x="696" y="586" width="110" height="24" rx="12" class="chip"/><text x="751" y="602" text-anchor="middle" class="chipt">Gemini flash</text>
+  <rect x="400" y="616" width="166" height="24" rx="12" class="chip"/><text x="483" y="632" text-anchor="middle" class="chipt">any OpenAI-compatible</text>
+  <rect x="574" y="616" width="130" height="24" rx="12" class="chip"/><text x="639" y="632" text-anchor="middle" class="chipt">local via Ollama</text>
+
+  <!-- Agent adapters -->
+  <g filter="url(#s)"><rect x="860" y="504" width="300" height="150" rx="14" fill="#e3f5ec" stroke="#c6ead6"/></g>
+  <text x="880" y="532" class="h" style="fill:#1fa463">Coding agent · for step 5</text>
+  <text x="880" y="552" class="p">interface: AgentAdapter</text>
+  <text x="880" y="568" class="mono">run(task) · stop() · research(question)</text>
+  <rect x="880" y="586" width="110" height="24" rx="12" class="today"/><text x="935" y="602" text-anchor="middle" class="todayt">Codex · today</text>
+  <rect x="998" y="586" width="90" height="24" rx="12" class="chip"/><text x="1043" y="602" text-anchor="middle" class="chipt">OpenCode</text>
+  <rect x="880" y="616" width="110" height="24" rx="12" class="chip"/><text x="935" y="632" text-anchor="middle" class="chipt">Claude Code</text>
+  <rect x="998" y="616" width="140" height="24" rx="12" class="chip"/><text x="1068" y="632" text-anchor="middle" class="chipt">any CLI with logs</text>
+
+  <!-- footer -->
+  <text x="40" y="686" class="p">Queue, Stop, status rules, prompts and the UI depend only on these three interfaces. Swapping a part is a config change or one adapter file, not a rewrite.</text>
+  <text x="40" y="706" class="p">The LLM returns intents (enqueue, cancel, stop, resume, research, new session, reset project). The server validates and executes them; the model never touches a shell.</text>
+</svg>
