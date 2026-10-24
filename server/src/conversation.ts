@@ -61,12 +61,12 @@ export async function converse(messages: ChatMessage[], state: AppState, memory:
     .join('\n');
   const notes = memory.slice(-8).map(n => `- ${n}`).join('\n');
   const prompt = `${RULES}\n\n=== CURRENT STATE ===\n${describeState(state)}${notes ? `\n\n=== NOTES FROM THE CODING AGENT'S WORK ===\n${notes}` : ''}\n\n=== CONVERSATION ===\n${history}\n\nRespond with the JSON object only.`;
-  const { text, ms } = await gemma(prompt, { json: true, maxTokens: 400 });
+  const { text, ms, model } = await gemma(prompt, { json: true, maxTokens: 400 });
   const parsed = parseJsonObject<Partial<ConversationReply>>(text);
   if (!parsed || typeof parsed.speech !== 'string') {
     return { speech: text.slice(0, 300) || "Sorry, I didn't catch that.", actions: [] };
   }
   const actions = Array.isArray(parsed.actions) ? (parsed.actions.filter(a => a && typeof a.type === 'string') as Action[]) : [];
-  console.log(`[gemma] ${ms}ms actions=${actions.map(a => a.type).join(',') || 'none'}`);
+  console.log(`[gemma] ${model} ${ms}ms actions=${actions.map(a => a.type).join(',') || 'none'}`);
   return { speech: parsed.speech, actions };
 }
