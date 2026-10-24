@@ -99,6 +99,15 @@ export class Orchestrator extends EventEmitter {
     return task;
   }
 
+  updateQueued(taskId: string, text: string): boolean {
+    const task = this.state.tasks.find(t => t.id === taskId && t.status === 'queued');
+    if (!task) return false;
+    task.text = text;
+    this.transcript('codex_prompt', text, { taskId, source: task.source, updated: true });
+    this.publish();
+    return true;
+  }
+
   cancelQueued(taskId: string): boolean {
     const task = this.state.tasks.find(t => t.id === taskId && t.status === 'queued');
     if (!task) return false;
@@ -153,12 +162,13 @@ export class Orchestrator extends EventEmitter {
       next.commandsRun = result.commandsRun;
       next.commandsFailed = result.commandsFailed;
       next.files = result.files;
-      next.verification = verificationFor(this.state.events.filter(e => e.taskId === next.id));
+      next.verification = verification;
       const wasCancelling = (next.status as Task['status']) === 'cancelling';
       const asksQuestion = result.completed && result.files.length === 0 && /\?\s*$/.test(result.summary.trim());
+      const verification = verificationFor(this.state.events.filter(e => e.taskId === next.id));
       if (wasCancelling || !result.completed) next.status = 'interrupted';
       else if (asksQuestion) { next.status = 'waiting'; next.question = result.summary.trim(); }
-      else next.status = result.lastExitCode !== null && result.lastExitCode !== 0 ? 'failed' : 'done';
+      else next.status = verification.build === 'failed' || verification.tests === 'failed' ? 'failed' : 'done';
     } catch (err) {
       next.status = (next.status as Task['status']) === 'cancelling' ? 'interrupted' : 'failed';
       next.summary = err instanceof Error ? err.message : String(err);

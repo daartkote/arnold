@@ -1,7 +1,7 @@
 import type { AgentEvent, Task } from '../../shared/types.ts';
 
-const BUILD = /\b(npm run build|pnpm build|yarn build|vite build|tsc\b|next build|cargo build|go build|mvn package|gradle build|make\b)/i;
-const TEST = /\b(npm test|npm run test|pnpm test|yarn test|vitest|jest|pytest|mocha|playwright|cypress|cargo test|go test)\b/i;
+export const BUILD = /\b(npm run build|pnpm build|yarn build|vite build|tsc\b|next build|cargo build|go build|mvn package|gradle build|make\b)/i;
+export const TEST = /\b(npm test|npm run test|pnpm test|yarn test|vitest|jest|pytest|mocha|playwright|cypress|cargo test|go test)\b/i;
 const WRITE = /(\bsed -i\b|\bapply_patch\b|\bpython3? -(c|\s*<<)|\bcat >|\btee\s+\S|\s>\s*\S+\.(tsx?|jsx?|css|json|md|py|go|rs|html)\b)/i;
 
 type Outcome = 'passed' | 'failed' | 'not run';
@@ -19,6 +19,14 @@ function outcome(events: AgentEvent[], re: RegExp): Outcome {
 
 export function verificationFor(events: AgentEvent[]): NonNullable<Task['verification']> {
   return { build: outcome(events, BUILD), tests: outcome(events, TEST) };
+}
+
+export function batchHasVerificationFailure(events: AgentEvent[]): boolean {
+  return events.some(e => {
+    if (e.type !== 'item.completed:command_execution') return false;
+    const item = (e.raw as { item?: { command?: string; exit_code?: number } } | undefined)?.item;
+    return Boolean(item?.command && (BUILD.test(item.command) || TEST.test(item.command) || /\b(npm|pnpm|yarn) (install|ci)\b/.test(item.command)) && (item.exit_code ?? 0) !== 0);
+  });
 }
 
 export function batchWritesFiles(events: AgentEvent[]): boolean {

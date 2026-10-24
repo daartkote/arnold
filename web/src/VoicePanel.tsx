@@ -11,7 +11,7 @@ interface Props {
 export default function VoicePanel({ agentId, pending }: Props) {
   const [error, setError] = useState<string | null>(null);
   const sentAt = useRef(new Map<string, number>());
-  const RESEND_MS = 12000;
+  const RESEND_MS = 6000;
 
   const conversation = useConversation({
     onError: (e: unknown) => setError(typeof e === 'string' ? e : (e as Error)?.message ?? 'voice error'),
@@ -59,7 +59,7 @@ export default function VoicePanel({ agentId, pending }: Props) {
       conversation.sendUserMessage(`[notification] ${next.text}`);
     };
     tick();
-    const timer = setInterval(tick, 3000);
+    const timer = setInterval(tick, 2000);
     return () => clearInterval(timer);
   }, [pending, connected, conversation, holding, conversation.isSpeaking]);
 

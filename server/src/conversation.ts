@@ -67,7 +67,7 @@ When asked what is happening, narrate the live activity: what Codex just said it
 You respond ONLY with one JSON object: {"speech": string, "actions": Action[]}
 Action types:
 - {"type":"enqueue_task","text":string} when the user asks to change, add, fix or build something in the project. Rewrite the request as a precise self-contained instruction for the coding agent, keeping the user's technical wording. Do not invent requirements the user did not state.
-- {"type":"cancel_queued_task","task_id":string} to remove a queued (not active) task.
+- {"type":"cancel_queued_task","task_id":string} ONLY when the user explicitly asks to cancel, remove or drop a queued task. Never for questions or repeats.
 - {"type":"research_project","question":string} for ANY question about the codebase or the project's behaviour (how is X stored, where is Y, what does Z do, "by the way…"). Mandatory for such questions, even if the queue is busy. This runs read-only while coding continues; say you'll look it up.
 - {"type":"stop"} when the user clearly wants to stop/abort the current work.
 - {"type":"resume"} when the user wants to continue the paused queue.

@@ -46,7 +46,14 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
         const state = orchestrator.getState();
         const open = state.tasks.filter(t => t.status === 'queued' || t.status === 'running' || t.status === 'cancelling');
         const dup = open.find(t => similar(t.text, text));
-        if (dup) { notes.push(`duplicate of ${dup.id}, not enqueued`); break; }
+        if (dup) {
+          const words = (x: string) => x.split('\n')[0].split(/\s+/).length;
+          const richer = words(text) >= words(dup.text) * 1.5;
+          if (richer && dup.status === 'queued') { orchestrator.updateQueued(dup.id, text); notes.push(`updated queued ${dup.id} with more detail`); }
+          else if (richer) { const f = orchestrator.enqueue(`Additional requirements for the task you are working on: ${text}`, 'voice'); notes.push(`follow-up ${f.id} for running ${dup.id}`); }
+          else notes.push(`duplicate of ${dup.id}, not enqueued`);
+          break;
+        }
         const t = orchestrator.enqueue(text, 'voice');
         notes.push(`enqueued ${t.id}`);
         break;

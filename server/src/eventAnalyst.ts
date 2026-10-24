@@ -1,7 +1,7 @@
 import type { AgentEvent, Task } from '../../shared/types.ts';
 import { llm as gemma, parseJsonObject } from './llm.ts';
 import type { Orchestrator } from './orchestrator.ts';
-import { batchWritesFiles, describeVerification, enforceVerificationClaims, filesWrittenIn } from './verification.ts';
+import { batchHasVerificationFailure, batchWritesFiles, describeVerification, enforceVerificationClaims, filesWrittenIn } from './verification.ts';
 
 interface Verdict {
   decision: 'SKIP' | 'REMEMBER' | 'SPEAK';
@@ -14,7 +14,8 @@ Respond ONLY with JSON: {"decision":"SKIP"|"REMEMBER"|"SPEAK","note":string,"spe
 - SKIP: pure noise (listing directories, grepping, re-reading files, a command that only inspects state).
 - REMEMBER: a fact worth keeping for later questions (a design decision, a data format, a limitation, a file that now owns some logic). "note" is one technical sentence about the code. Never record anything about the user's preferences or answers: you only see the agent's output, not the user.
 - SPEAK: a milestone the engineer wants to hear while it happens: Codex announced its plan or approach (once, at the start); it edited files (say which and what for); a build or test command FAILED (quote the command and the error line); it asks a question; the task finished.
-Do not SPEAK for successful verification commands (build or tests passing) in the middle of a task; the final report covers that. Exploration commands that exit non-zero (rg, grep, ls, cat finding nothing) are not failures, ignore them.
+Do not SPEAK for successful verification commands (build or tests passing) in the middle of a task; the final report covers that. Exploration and lint-style commands that exit non-zero (rg, grep, ls, cat, find, git diff --check, git status) are not failures: ignore them completely, never mention them.
+Speak in first person as the engineer doing the work ("I'm adding…", "I edited…"), never "the agent announced".
 "speech" is 1-2 spoken sentences in the voice of a senior engineer narrating their own work: concrete file names, components, types, commands, exit codes. No markdown, no filler, no "all set" or "ready to test". Say "build passed" only if npm run build (or equivalent) exited 0 in the events; say "tests" only if a test command ran. For a finished task: what changed, in which files, and what was verified, in at most two sentences.`;
 
 export class EventAnalyst {
@@ -67,10 +68,7 @@ export class EventAnalyst {
       console.log(`[analyst] ${reason} ${ms}ms -> ${v.decision}${v.note ? ` (${v.note.slice(0, 80)})` : ''}`);
       this.orchestrator.transcript('analyst', `${v.decision}${v.note ? `: ${v.note}` : ''}`, { reason, events: batch.length, ms, speech: v.speech });
       if (v.decision === 'REMEMBER' && v.note) this.memory.push(v.note);
-      const hasFailure = batch.some(e => {
-        const item = (e.raw as { item?: { exit_code?: number } } | undefined)?.item;
-        return typeof item?.exit_code === 'number' && item.exit_code !== 0;
-      });
+      const hasFailure = batchHasVerificationFailure(batch);
       if (wrote && !finished && v.decision !== 'SPEAK' && v.speech) v.decision = 'SPEAK';
       if (wrote && !finished && v.decision !== 'SPEAK') {
         v.decision = 'SPEAK';
