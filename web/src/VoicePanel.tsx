@@ -1,7 +1,6 @@
 import { useConversation } from '@elevenlabs/react';
 import { useEffect, useRef, useState } from 'react';
 import type { Notification } from '../../shared/types';
-import { api } from './useAppState';
 import VoiceSettings from './VoiceSettings';
 
 interface Props {

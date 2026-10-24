@@ -71,7 +71,10 @@ export class EventAnalyst {
         return typeof item?.exit_code === 'number' && item.exit_code !== 0;
       });
       if (v.decision === 'SPEAK' && v.speech && !testRan) {
-        v.speech = v.speech.replace(/\b(,?\s*and\s+)?(unit\s+|all\s+)?tests?\s+(all\s+)?(passed|pass|succeeded|succeed|are\s+green|green)\b/gi, '').replace(/\bbuild and tests\b/gi, 'build').replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').trim();
+        v.speech = v.speech
+          .replace(/\b(build|builds)\s+and\s+(unit\s+|all\s+)?tests?\s+(passed|pass|succeeded|succeed)\b/gi, '$1 $3')
+          .replace(/\b(,?\s*and\s+)?(unit\s+|all\s+)?tests?\s+(all\s+)?(passed|pass|succeeded|succeed|are\s+green|green)\b/gi, '')
+          .replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').replace(/,\s*\./g, '.').trim();
       }
       if (v.decision === 'SPEAK' && v.speech) {
         const since = Date.now() - (this.lastSpokeAt.get(taskId) ?? 0);
