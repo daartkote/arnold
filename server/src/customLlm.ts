@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { Orchestrator } from './orchestrator.ts';
 import { converse, type Action } from './conversation.ts';
 import { settings } from './settings.ts';
@@ -88,6 +88,14 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
   return notes;
 }
 
+interface Answered { speech: string; at: number; promise?: Promise<string> }
+const recent = new Map<string, Answered>();
+const REQUEST_DEDUP_MS = 8000;
+
+function recentKey(text: string) {
+  return normalize(text);
+}
+
 export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrator, secret: string | undefined, memory: () => string[], vocabulary: () => string[]) {
   app.post<{ Body: ChatRequest }>('/v1/chat/completions', async (req, reply) => {
     if (secret && req.headers['x-voicecode-secret'] !== secret && req.headers.authorization !== `Bearer ${secret}`) {
@@ -96,6 +104,17 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
     const body = req.body ?? { messages: [] };
     const lastUser = [...(body.messages ?? [])].reverse().find(m => m.role === 'user')?.content ?? '';
     app.log.info({ lastUser: lastUser.slice(0, 120) }, 'custom llm request');
+
+    const key = recentKey(lastUser);
+    const prior = key ? recent.get(key) : undefined;
+    if (prior && Date.now() - prior.at < REQUEST_DEDUP_MS) {
+      app.log.info('repeated request, reusing the answer');
+      const speech = prior.promise ? await prior.promise : prior.speech;
+      return sendSpeech(reply, body, speech);
+    }
+    let resolveSpeech: (s: string) => void = () => {};
+    const inflight = new Promise<string>(r => { resolveSpeech = r; });
+    if (key) recent.set(key, { speech: '', at: Date.now(), promise: inflight });
 
     let speech: string;
     const silentTurn = !lastUser.replace(/[.\s…]/g, '').length;
@@ -146,20 +165,27 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
       speech = 'Sorry, my language model hiccuped. Say that again?';
     }
 
-    const id = `chatcmpl-${Date.now()}`;
-    const created = Math.floor(Date.now() / 1000);
-    const model = body.model ?? 'gemma';
-    if (body.stream === false) {
-      return { id, object: 'chat.completion', created, model, choices: [{ index: 0, message: { role: 'assistant', content: speech }, finish_reason: 'stop' }] };
-    }
-    reply.raw.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-    const chunk = (delta: object, finish: string | null) =>
-      reply.raw.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`);
-    chunk({ role: 'assistant', content: '' }, null);
-    chunk({ content: speech }, null);
-    chunk({}, 'stop');
-    reply.raw.write('data: [DONE]\n\n');
-    reply.raw.end();
-    return reply;
+    if (key) recent.set(key, { speech, at: Date.now() });
+    resolveSpeech(speech);
+    for (const [k, v] of recent) if (Date.now() - v.at > REQUEST_DEDUP_MS * 4) recent.delete(k);
+    return sendSpeech(reply, body, speech);
   });
+}
+
+function sendSpeech(reply: FastifyReply, body: ChatRequest, speech: string) {
+  const id = `chatcmpl-${Date.now()}`;
+  const created = Math.floor(Date.now() / 1000);
+  const model = body.model ?? 'gemma';
+  if (body.stream === false) {
+    return reply.send({ id, object: 'chat.completion', created, model, choices: [{ index: 0, message: { role: 'assistant', content: speech }, finish_reason: 'stop' }] });
+  }
+  reply.raw.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+  const chunk = (delta: object, finish: string | null) =>
+    reply.raw.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`);
+  chunk({ role: 'assistant', content: '' }, null);
+  chunk({ content: speech }, null);
+  chunk({}, 'stop');
+  reply.raw.write('data: [DONE]\n\n');
+  reply.raw.end();
+  return reply;
 }

@@ -36,7 +36,7 @@ interface ChatMessage {
 
 function liveActivity(state: AppState): string {
   if (!state.activeTaskId) return '';
-  const recent = state.events.filter(e => e.taskId === state.activeTaskId && !e.type.startsWith('item.started') && e.type !== 'turn.started' && e.type !== 'thread.started').slice(-8);
+  const recent = state.events.filter(e => e.taskId === state.activeTaskId && !e.type.startsWith('item.started') && e.type !== 'turn.started' && e.type !== 'thread.started').slice(-6);
   if (!recent.length) return 'Codex just started, no output yet.';
   return recent.map(e => {
     const age = Math.round((Date.now() - e.ts) / 1000);
@@ -116,11 +116,11 @@ When the user asks what was done or whether something is finished, answer from "
 export async function converse(messages: ChatMessage[], state: AppState, memory: string[] = [], vocabulary: string[] = []): Promise<ConversationReply> {
   const history = messages
     .filter(m => m.role !== 'system')
-    .slice(-12)
+    .slice(-8)
     .map(m => `${m.role === 'user' ? 'User' : 'VoiceCode'}: ${m.content}`)
     .join('\n');
-  const notes = memory.slice(-8).map(n => `- ${n}`).join('\n');
-  const vocab = vocabulary.slice(0, 60).join(', ');
+  const notes = memory.slice(-5).map(n => `- ${n}`).join('\n');
+  const vocab = vocabulary.slice(0, 30).join(', ');
   const prompt = `${RULES}\n\n=== CURRENT STATE ===\n${describeState(state)}${vocab ? `\n\n=== PROJECT VOCABULARY (from the codebase) ===\n${vocab}` : ''}${notes ? `\n\n=== NOTES FROM THE CODING AGENT'S WORK ===\n${notes}` : ''}\n\n=== CONVERSATION ===\n${history}\n\nRespond with the JSON object only.`;
   const { text, ms, model } = await gemma(prompt, { json: true, maxTokens: 400 });
   const parsed = parseJsonObject<Partial<ConversationReply>>(text);

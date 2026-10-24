@@ -35,8 +35,8 @@ export class EventAnalyst {
   private onEvent(e: AgentEvent) {
     if (e.type.endsWith(':reasoning')) return;
     this.buffer.push(e);
-    if (this.buffer.length >= 6) void this.flush('batch');
-    else if (!this.timer) this.timer = setTimeout(() => void this.flush('timer'), 8000);
+    if (this.buffer.length >= 8) void this.flush('batch');
+    else if (!this.timer) this.timer = setTimeout(() => void this.flush('timer'), 12000);
   }
 
   private async onTaskFinished(task: Task) {
