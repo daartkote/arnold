@@ -45,9 +45,12 @@ button.ghost:hover { color: var(--text); }
 .ghost-link { color: var(--muted); font-size: 12px; font-weight: 600; text-decoration: none; padding: 4px 8px; }
 .ghost-link:hover { color: var(--accent); }
 
-main { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 20px; }
-@media (max-width: 1400px) { main { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 960px) { main { grid-template-columns: 1fr; } .shell { padding: 16px; } }
+main { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 20px; align-items: start; }
+@media (max-width: 1280px) {
+  main { grid-template-columns: 1fr 1fr; }
+  .col.aux { grid-column: 1 / -1; order: 2; display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+}
+@media (max-width: 960px) { main { grid-template-columns: 1fr; } .col.aux { grid-template-columns: 1fr; } .shell { padding: 16px; } }
 .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }

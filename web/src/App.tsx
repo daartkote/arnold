@@ -85,7 +85,7 @@ export default function App() {
       </header>
 
       <main>
-        <section className="col">
+        <section className="col aux">
           <DemoScript />
           <Preview url={previewUrl} reloadKey={finishedCount} />
         </section>
