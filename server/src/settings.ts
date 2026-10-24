@@ -28,6 +28,15 @@ export async function syncAgentTurnSettings() {
   return settings;
 }
 
+let lastKeywords = '';
+export async function syncAgentKeywords(keywords: string[]) {
+  const key = keywords.join('|');
+  if (key === lastKeywords) return false;
+  await patchAgent({ conversation_config: { asr: { keywords } } });
+  lastKeywords = key;
+  return true;
+}
+
 export function registerSettings(app: FastifyInstance) {
   app.get('/api/settings', async () => settings);
   app.post<{ Body: Partial<VoiceSettings> }>('/api/settings', async (req, reply) => {

@@ -8,7 +8,8 @@ export type Action =
   | { type: 'research_project'; question: string }
   | { type: 'stop' }
   | { type: 'resume' }
-  | { type: 'new_session' };
+  | { type: 'new_session' }
+  | { type: 'reset_project' };
 
 export interface ConversationReply {
   speech: string;
@@ -67,20 +68,28 @@ Action types:
 - {"type":"research_project","question":string} when the user asks a question about the codebase (how is X stored, where is Y, what does Z do). This runs read-only while coding continues; say you'll look it up.
 - {"type":"stop"} when the user clearly wants to stop/abort the current work.
 - {"type":"resume"} when the user wants to continue the paused queue.
-- {"type":"new_session"} when the user clearly asks to start over, start a new session, reset, or clear all tasks and history. Confirm in speech that everything was cleared.
+- {"type":"new_session"} when the user clearly asks to start over, start a new session, or clear all tasks and history. Confirm in speech that everything was cleared.
+- {"type":"reset_project"} when the user asks to reset, revert or restore the project files to the clean baseline (git reset, discard changes). This is done by the server, never by the coding agent. Confirm in speech.
+Never enqueue destructive git operations (reset, checkout --, clean, push --force, branch -D) as a coding task; use reset_project or ask what the user means.
 - {"type":"get_status"} when the user asks what's happening; answer from the state.
 Chit-chat or clarifications need no actions. If the request is ambiguous, ask one short question instead of enqueueing.
-If the latest user message is a notification relay (starts with [notification]), deliver it in your own words with the technical details intact.
-When the user asks what was done or whether something is finished, answer from "Recent results" and the finished-tasks list; those are authoritative.`;
 
-export async function converse(messages: ChatMessage[], state: AppState, memory: string[] = []): Promise<ConversationReply> {
+Transcripts come from speech recognition in a noisy room. Drop fillers and repeated words. A mis-heard word usually sounds like a term from the project vocabulary below or from the conversation so far; prefer that reading when the literal one makes no sense for this project. Write the task text as a clean engineering instruction, never quote the raw transcript. If the request still makes no sense, ask the user to repeat it instead of enqueueing.
+If the request is the same as the active task or a queued task, do NOT enqueue it again; say it is already in progress or queued.
+Never speak task ids. Refer to tasks by what they do.
+No filler: do not restate the question, do not say what Codex is "preparing" or "about to" do unless an event says so, do not add status the user did not ask for. If you have nothing factual to add, say so in one sentence.
+If the latest user message is a notification relay (starts with [notification]), speak its content once, trimmed to the essentials, and nothing else.
+When the user asks what was done or whether something is finished, answer from "Recent results" and the finished-tasks list; those are authoritative. Say "tests" only if a test command was actually run.`;
+
+export async function converse(messages: ChatMessage[], state: AppState, memory: string[] = [], vocabulary: string[] = []): Promise<ConversationReply> {
   const history = messages
     .filter(m => m.role !== 'system')
     .slice(-12)
     .map(m => `${m.role === 'user' ? 'User' : 'VoiceCode'}: ${m.content}`)
     .join('\n');
   const notes = memory.slice(-8).map(n => `- ${n}`).join('\n');
-  const prompt = `${RULES}\n\n=== CURRENT STATE ===\n${describeState(state)}${notes ? `\n\n=== NOTES FROM THE CODING AGENT'S WORK ===\n${notes}` : ''}\n\n=== CONVERSATION ===\n${history}\n\nRespond with the JSON object only.`;
+  const vocab = vocabulary.slice(0, 60).join(', ');
+  const prompt = `${RULES}\n\n=== CURRENT STATE ===\n${describeState(state)}${vocab ? `\n\n=== PROJECT VOCABULARY (from the codebase) ===\n${vocab}` : ''}${notes ? `\n\n=== NOTES FROM THE CODING AGENT'S WORK ===\n${notes}` : ''}\n\n=== CONVERSATION ===\n${history}\n\nRespond with the JSON object only.`;
   const { text, ms, model } = await gemma(prompt, { json: true, maxTokens: 400 });
   const parsed = parseJsonObject<Partial<ConversationReply>>(text);
   if (!parsed || typeof parsed.speech !== 'string') {

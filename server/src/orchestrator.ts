@@ -1,4 +1,8 @@
 import { EventEmitter } from 'node:events';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const run = promisify(execFile);
 import { nanoid } from 'nanoid';
 import type { AgentEvent, AppState, Notification, ResearchQuery, Task, TaskSource, TranscriptEntry, TranscriptKind } from '../../shared/types.ts';
 import type { AgentAdapter } from './adapter.ts';
@@ -57,6 +61,19 @@ export class Orchestrator extends EventEmitter {
     this.state.paused = false;
     this.log.append({ kind: 'reset', ts: Date.now() });
     this.publish();
+  }
+
+  async resetProject(): Promise<string> {
+    if (this.activeTask()?.status === 'running') await this.stop();
+    const cwd = this.state.projectDir;
+    const ref = process.env.PROJECT_BASELINE_REF ?? 'HEAD';
+    await run('git', ['checkout', '--', '.'], { cwd });
+    await run('git', ['clean', '-fdq', '-e', 'node_modules'], { cwd });
+    if (ref !== 'HEAD') await run('git', ['reset', '-q', '--hard', ref], { cwd });
+    this.state.threadId = null;
+    this.transcript('system', `project files reset to ${ref}`);
+    this.publish();
+    return `project reset to ${ref}`;
   }
 
   unannouncedTasks(): Task[] {
@@ -135,7 +152,7 @@ export class Orchestrator extends EventEmitter {
       next.files = result.files;
       const wasCancelling = (next.status as Task['status']) === 'cancelling';
       if (wasCancelling || !result.completed) next.status = 'interrupted';
-      else next.status = result.commandsFailed > 0 ? 'failed' : 'done';
+      else next.status = result.lastExitCode !== null && result.lastExitCode !== 0 ? 'failed' : 'done';
     } catch (err) {
       next.status = (next.status as Task['status']) === 'cancelling' ? 'interrupted' : 'failed';
       next.summary = err instanceof Error ? err.message : String(err);

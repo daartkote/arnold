@@ -12,6 +12,7 @@ export interface RunResult {
   commandsRun: number;
   commandsFailed: number;
   files: string[];
+  lastExitCode: number | null;
   completed: boolean;
 }
 

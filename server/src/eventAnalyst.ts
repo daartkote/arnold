@@ -12,8 +12,9 @@ const RULES = `You watch raw events from a coding agent (Codex) working on a sof
 Respond ONLY with JSON: {"decision":"SKIP"|"REMEMBER"|"SPEAK","note":string,"speech":string}
 - SKIP: pure noise (listing directories, grepping, re-reading files, a command that only inspects state).
 - REMEMBER: a fact worth keeping for later questions (a design decision, a data format, a limitation, a file that now owns some logic). "note" is one technical sentence.
-- SPEAK: a milestone the engineer wants to hear while it happens: Codex announced its plan or approach; it edited files (say which and what for); it started or finished a build/test run (with exit code); a command failed in a blocking way; it asks a question; the task finished.
-"speech" is 1-3 spoken sentences in the voice of a senior engineer narrating their own work: concrete file names, components, types, commands, exit codes. No markdown. Never say a build or tests passed unless an exit code 0 for that exact command is in the events. For a finished task, summarize what changed, in which files, and what was verified.`;
+- SPEAK: a milestone the engineer wants to hear while it happens: Codex announced its plan or approach (once, at the start); it edited files (say which and what for); a build or test command FAILED (quote the command and the error line); it asks a question; the task finished.
+Do not SPEAK for successful verification commands (build or tests passing) in the middle of a task; the final report covers that. Exploration commands that exit non-zero (rg, grep, ls, cat finding nothing) are not failures, ignore them.
+"speech" is 1-2 spoken sentences in the voice of a senior engineer narrating their own work: concrete file names, components, types, commands, exit codes. No markdown, no filler, no "all set" or "ready to test". Say "build passed" only if npm run build (or equivalent) exited 0 in the events; say "tests" only if a test command ran. For a finished task: what changed, in which files, and what was verified, in at most two sentences.`;
 
 export class EventAnalyst {
   private buffer: AgentEvent[] = [];

@@ -8,8 +8,9 @@ import { FakeAdapter } from './fakeAdapter.ts';
 import { CodexAdapter } from './codexAdapter.ts';
 import { registerCustomLlm } from './customLlm.ts';
 import { EventAnalyst } from './eventAnalyst.ts';
-import { registerSettings, syncAgentTurnSettings } from './settings.ts';
+import { registerSettings, syncAgentTurnSettings, syncAgentKeywords } from './settings.ts';
 import { providers } from './llm.ts';
+import { buildVocabulary } from './vocabulary.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const PROJECT_DIR = resolve(process.env.PROJECT_DIR ?? '../demo-project');
@@ -18,11 +19,21 @@ const DATA_DIR = resolve(process.env.DATA_DIR ?? './data');
 const adapter = process.env.PROVIDER === 'fake' ? new FakeAdapter() : new CodexAdapter(process.env.CODEX_MODEL);
 const orchestrator = new Orchestrator(adapter, PROJECT_DIR, DATA_DIR);
 const analyst = new EventAnalyst(orchestrator);
+let vocabulary: string[] = [];
+const refreshVocabulary = async () => {
+  vocabulary = buildVocabulary(PROJECT_DIR);
+  try {
+    if (await syncAgentKeywords(vocabulary)) app.log.info({ count: vocabulary.length, sample: vocabulary.slice(0, 12) }, 'asr keywords synced from project');
+  } catch (err) {
+    app.log.warn(`keyword sync failed: ${(err as Error).message}`);
+  }
+};
+orchestrator.on('taskFinished', () => void refreshVocabulary());
 
 const app = Fastify({ logger: { level: 'info' } });
 await app.register(cors, { origin: true });
 await app.register(websocket);
-registerCustomLlm(app, orchestrator, process.env.CUSTOM_LLM_SECRET, () => analyst.memory);
+registerCustomLlm(app, orchestrator, process.env.CUSTOM_LLM_SECRET, () => analyst.memory, () => vocabulary);
 registerSettings(app);
 
 const sockets = new Set<{ send(data: string): void }>();
@@ -43,6 +54,8 @@ app.get('/ws', { websocket: true }, socket => {
 
 app.get('/api/state', async () => orchestrator.getState());
 
+app.get('/api/vocabulary', async () => ({ keywords: vocabulary }));
+
 app.get('/api/config', async () => ({ agentId: process.env.ELEVENLABS_AGENT_ID ?? null, previewUrl: process.env.PREVIEW_URL ?? 'http://localhost:5174' }));
 
 app.post<{ Body: { text: string; source?: 'ui' | 'voice' } }>('/api/tasks', async (req, reply) => {
@@ -60,6 +73,8 @@ app.post('/api/stop', async () => {
   await orchestrator.stop();
   return orchestrator.getState();
 });
+
+app.post('/api/reset-project', async () => ({ result: await orchestrator.resetProject() }));
 
 app.post('/api/reset', async () => {
   await orchestrator.reset();
@@ -86,3 +101,4 @@ await app.listen({ port: PORT, host: '0.0.0.0' });
 app.log.info(`project dir: ${PROJECT_DIR}`);
 app.log.info(`llm chain: ${providers.map(p => p.name).join(' -> ')}`);
 syncAgentTurnSettings().then(s => app.log.info(s, 'agent turn settings synced')).catch(err => app.log.warn(err.message));
+void refreshVocabulary();

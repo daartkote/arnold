@@ -3,7 +3,7 @@ import type { Orchestrator } from './orchestrator.ts';
 import { converse, type Action } from './conversation.ts';
 import { settings } from './settings.ts';
 
-const DEDUP_WINDOW_MS = 10000;
+const DEDUP_WINDOW_MS = 45000;
 let lastActed = { text: '', at: 0 };
 
 function normalize(s: string) {
@@ -15,6 +15,15 @@ export function isDuplicateUtterance(text: string, now = Date.now()): boolean {
   if (!n || now - lastActed.at > DEDUP_WINDOW_MS) return false;
   const prev = lastActed.text;
   return n === prev || n.startsWith(prev) || prev.startsWith(n);
+}
+
+function similar(a: string, b: string): boolean {
+  const ta = new Set(normalize(a).split(' ').filter(w => w.length > 3));
+  const tb = new Set(normalize(b).split(' ').filter(w => w.length > 3));
+  if (!ta.size || !tb.size) return false;
+  let common = 0;
+  for (const w of ta) if (tb.has(w)) common++;
+  return common / Math.min(ta.size, tb.size) >= 0.6;
 }
 
 function markActed(text: string, now = Date.now()) {
@@ -31,9 +40,17 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
   const notes: string[] = [];
   for (const a of actions) {
     switch (a.type) {
-      case 'enqueue_task':
-        if (a.text?.trim()) { const t = orchestrator.enqueue(a.text.trim(), 'voice'); notes.push(`enqueued ${t.id}`); }
+      case 'enqueue_task': {
+        const text = a.text?.trim();
+        if (!text) break;
+        const state = orchestrator.getState();
+        const open = state.tasks.filter(t => t.status === 'queued' || t.status === 'running' || t.status === 'cancelling');
+        const dup = open.find(t => similar(t.text, text));
+        if (dup) { notes.push(`duplicate of ${dup.id}, not enqueued`); break; }
+        const t = orchestrator.enqueue(text, 'voice');
+        notes.push(`enqueued ${t.id}`);
         break;
+      }
       case 'cancel_queued_task': {
         const id = a.task_id ?? orchestrator.queuedTasks().find(t => a.text && t.text.toLowerCase().includes(a.text.toLowerCase()))?.id;
         if (id) notes.push(orchestrator.cancelQueued(id) ? `cancelled ${id}` : `not queued ${id}`);
@@ -51,6 +68,9 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
       case 'new_session':
         await orchestrator.reset(); notes.push('session reset');
         break;
+      case 'reset_project':
+        notes.push(await orchestrator.resetProject());
+        break;
       case 'get_status':
         break;
     }
@@ -58,7 +78,7 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
   return notes;
 }
 
-export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrator, secret: string | undefined, memory: () => string[]) {
+export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrator, secret: string | undefined, memory: () => string[], vocabulary: () => string[]) {
   app.post<{ Body: ChatRequest }>('/v1/chat/completions', async (req, reply) => {
     if (secret && req.headers['x-voicecode-secret'] !== secret && req.headers.authorization !== `Bearer ${secret}`) {
       return reply.code(401).send({ error: 'unauthorized' });
@@ -76,7 +96,8 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
       const isRelay = lastUser.startsWith('[notification]');
       orchestrator.transcript(isRelay ? 'system' : 'user', isRelay ? `relayed to agent: ${lastUser.slice(14).trim()}` : lastUser);
       const unannouncedBefore = orchestrator.unannouncedTasks().map(t => t.id);
-      const result = await converse(body.messages ?? [], orchestrator.getState(), memory());
+      if (isRelay && unannouncedBefore.length) orchestrator.markAnnounced(unannouncedBefore);
+      const result = await converse(body.messages ?? [], orchestrator.getState(), memory(), vocabulary());
       speech = result.speech;
       orchestrator.transcript('gemma', speech, { actions: result.actions });
       if (unannouncedBefore.length) orchestrator.markAnnounced(unannouncedBefore);

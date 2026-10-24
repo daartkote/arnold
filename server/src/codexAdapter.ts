@@ -131,6 +131,7 @@ export class CodexAdapter implements AgentAdapter {
     let completed = false;
     let stderr = '';
     const files = new Set<string>();
+    let lastExitCode: number | null = null;
 
     this.readLines(child, line => {
       let ev: CodexEvent;
@@ -139,6 +140,7 @@ export class CodexAdapter implements AgentAdapter {
       if (ev.type === 'turn.completed') completed = true;
       if (ev.type === 'item.completed' && ev.item?.type === 'command_execution') {
         commandsRun++;
+        lastExitCode = ev.item.exit_code ?? null;
         if ((ev.item.exit_code ?? 0) !== 0) commandsFailed++;
       }
       if (ev.type === 'item.completed' && ev.item?.type === 'agent_message') lastMessage = ev.item.text ?? '';
@@ -157,12 +159,12 @@ export class CodexAdapter implements AgentAdapter {
     if (relevantErr) onEvent({ ts: Date.now(), type: 'stderr', summary: redact(relevantErr.slice(0, 300)) });
 
     if (this.stopping) {
-      return { threadId, summary: 'Interrupted by user', commandsRun, commandsFailed, files: [...files], completed: false };
+      return { threadId, summary: 'Interrupted by user', commandsRun, commandsFailed, files: [...files], lastExitCode, completed: false };
     }
     if (!completed && exit.code !== 0) {
       throw new Error(`codex exited with code ${exit.code}${relevantErr ? `: ${relevantErr.slice(0, 200)}` : ''}`);
     }
-    return { threadId, summary: redact(lastMessage || 'Turn completed without a final message'), commandsRun, commandsFailed, files: [...files], completed };
+    return { threadId, summary: redact(lastMessage || 'Turn completed without a final message'), commandsRun, commandsFailed, files: [...files], lastExitCode, completed };
   }
 
   async stop(): Promise<void> {
