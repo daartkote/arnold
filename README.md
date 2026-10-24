@@ -2,37 +2,35 @@
 
 **Bring your own coding agent. Give it a voice.**
 
-> Put on a headset, say what you want built, and listen to a senior engineer narrate the work: which files are changing, what command just ran, whether the build is green. Interrupt with a question about the codebase and get an answer without stopping the work. Press Stop and the agent stops, every time.
+VoiceCode is a voice interface for coding agents. You describe a change over a headset, a coding agent applies it to a real project, and VoiceCode tells you what happened in the words an engineer would use: which files changed, which command ran, what the exit code was. Built in one hackathon day on Codex CLI, ElevenLabs and open models.
 
-VoiceCode is a hands-free voice layer over coding agents. It was built in one hackathon day on top of **Codex CLI**, with **ElevenLabs** handling speech and an open model (**gpt-oss-20b on Groq**, Gemma as fallback) deciding what to say and what to do.
+## The idea
 
-## Why
+Coding agents do the work well. What still costs attention is everything around them: writing prompts, watching a terminal, scanning output to learn whether anything actually happened. VoiceCode takes that part off the screen.
 
-Coding agents are already good at the work. The bottleneck is the human loop around them: typing prompts, watching terminals, reading walls of output to find out whether anything actually happened. VoiceCode moves that loop to your ears and your voice.
+- **Speak the task.** A sentence like "add tags to tasks, show them as chips, let me filter by tag" becomes a precise instruction for the agent and an entry in a visible queue.
+- **Hear the work, not the noise.** Every agent event is reviewed before it is spoken. Routine steps are skipped; the plan, file edits, failures and the result are narrated with file names, commands and exit codes.
+- **Trust what you hear.** The status of a task comes from exit codes, not from the model. "Build passed" is only said when a build command exited with 0.
+- **Ask without interrupting.** A question about the codebase runs in a separate read-only agent while the coding task continues.
+- **Stop is a button, not a request.** It goes straight to the server, kills the agent's process tree, pauses the queue and keeps pending work. Resume is explicit.
+- **Nothing is tied to one vendor.** The voice platform, the language model and the coding agent each sit behind a small interface. Codex, Groq and ElevenLabs are today's choices, not assumptions.
 
-- **Talk instead of type.** "Add tags to tasks, show them as chips, let me filter by tag." That sentence becomes a precise instruction for the agent and a task in a visible queue.
-- **Hear what is really going on.** Every agent event is reviewed before it reaches your ears. Routine noise is dropped; plans, file edits, failures and completions are narrated in engineer language: files, components, commands, exit codes.
-- **Never be lied to.** The agent is only allowed to say "build passed" when a build command exited with code 0. Status comes from exit codes, not from the model's optimism.
-- **Keep thinking while it works.** "By the way, how are tasks stored?" runs in a separate read-only agent process. The coding task never pauses.
-- **Stay in control.** Stop is a button wired straight to the server, independent of any model. It kills the whole process tree, pauses the queue, keeps your pending tasks. Resume is explicit.
-- **Bring your own agent.** The orchestrator, UI and prompts know only a three-method adapter: run, stop, research. Codex is the first implementation; OpenCode or Claude Code are a file each.
-
-## What a session looks like
+## A session
 
 | You say | What happens |
 |---|---|
-| "What are you working on?" | Reads the live state. "Nothing is running, queue is empty." |
+| "What are you working on?" | Reads the live state. "Nothing is running, the queue is empty." |
 | "Add tags to tasks, show them as chips, filter by tag, make sure the build passes." | Task queued and started. You hear the plan: *"I'll add a tags field to each task and render them as chips beneath the title."* |
-| "By the way, how are tasks stored?" | A read-only research run answers in ~15 s while the coding run continues. |
+| "By the way, how are tasks stored?" | A read-only research run answers in about 15 seconds while the coding run continues. |
 | "Next, add due dates and highlight overdue tasks." | Queued behind the active task. |
 | *(silence)* | *"Tags are done. Changes in src/App.tsx and src/App.css, npm run build exited 0."* The embedded preview reloads. |
 | **Stop** (button) | Active run killed, queue paused, pending task preserved. |
 | "What happened to the due date task?" | "It was interrupted. The queue is paused, say resume to continue." |
-| "Reset the project." | Server restores the baseline with git. The agent never runs destructive git commands. |
+| "Reset the project." | The server restores the git baseline. The coding agent never runs destructive git commands. |
 
-## Built for real rooms
+## Working in a loud room
 
-Hackathon halls are loud and microphones are cheap. VoiceCode ships with the fixes we needed on the day: push-to-talk that keeps the mic closed between phrases, speculative turns off and repeated transcripts deduplicated so one sentence never becomes two tasks, a project vocabulary mined from the codebase and fed to speech recognition so `readTasks` and `STORAGE_KEY` are heard as what they are, and silence handling that keeps the call alive without the agent talking to itself.
+The hackathon hall was loud and the microphone was cheap, so a few things are built in: push-to-talk keeps the mic closed between phrases; speculative turns are off and repeated transcripts are deduplicated, so one sentence does not become two tasks; a vocabulary mined from the project's code is sent to speech recognition and to the model, so identifiers like `readTasks` are heard as what they are; and silence is handled so the call stays open without the agent talking to itself.
 
 ## Architecture
 
