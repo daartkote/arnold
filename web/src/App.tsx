@@ -68,6 +68,8 @@ export default function App() {
 
       <main>
         <section className="col">
+          <ConversationLog entries={state.transcript} />
+
           <div className="card">
             <div className="label">Active task {active ? <span className={`status ${active.status}`}>{statusLabel[active.status]}</span> : <span className="status">{state.paused ? 'Paused' : 'Idle'}</span>}</div>
             {active ? (
@@ -112,7 +114,6 @@ export default function App() {
             </ul>
           </div>
 
-          <ConversationLog entries={state.transcript} />
         </section>
 
         <section className="col">

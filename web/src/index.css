@@ -115,8 +115,8 @@ main { display: grid; grid-template-columns: 1fr 1.15fr; gap: 20px; align-items:
 .transcript li.system { color: var(--muted); font-size: 12px; }
 .transcript li.system span:last-child { background: transparent; border: 0; padding: 2px 0; }
 
-.translog { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 42vh; overflow: auto; }
-.translog li { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+.translog { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow: auto; }
+.translog li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
 .translog .mono { color: var(--faint); padding-top: 6px; white-space: nowrap; }
 .translog .pill { padding-top: 5px; padding-bottom: 5px; }
 .translog .grow { background: var(--paper); border: 1px solid var(--line); padding: 6px 10px; border-radius: 10px; }
