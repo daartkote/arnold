@@ -61,6 +61,11 @@ app.post('/api/stop', async () => {
   return orchestrator.getState();
 });
 
+app.post('/api/reset', async () => {
+  await orchestrator.reset();
+  return orchestrator.getState();
+});
+
 app.post('/api/resume', async () => {
   orchestrator.resume();
   return orchestrator.getState();

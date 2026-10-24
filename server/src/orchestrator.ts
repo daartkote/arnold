@@ -45,6 +45,20 @@ export class Orchestrator extends EventEmitter {
     return entry;
   }
 
+  async reset(): Promise<void> {
+    if (this.activeTask()?.status === 'running') await this.stop();
+    this.state.tasks = [];
+    this.state.events = [];
+    this.state.notifications = [];
+    this.state.research = [];
+    this.state.transcript = [];
+    this.state.threadId = null;
+    this.state.activeTaskId = null;
+    this.state.paused = false;
+    this.log.append({ kind: 'reset', ts: Date.now() });
+    this.publish();
+  }
+
   unannouncedTasks(): Task[] {
     return this.state.tasks.filter(t => ['done', 'failed', 'interrupted'].includes(t.status) && !t.announcedAt);
   }

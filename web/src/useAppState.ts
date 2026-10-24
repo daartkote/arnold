@@ -41,6 +41,7 @@ export const api = {
   cancel: (id: string) => fetch(`/api/tasks/${id}`, { method: 'DELETE' }),
   stop: () => fetch('/api/stop', { method: 'POST' }),
   resume: () => fetch('/api/resume', { method: 'POST' }),
+  reset: () => fetch('/api/reset', { method: 'POST' }),
   research: (question: string) => fetch('/api/research', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question }) }),
   ack: (id: string) => fetch(`/api/notifications/${id}/ack`, { method: 'POST' }),
 };

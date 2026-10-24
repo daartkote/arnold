@@ -60,6 +60,7 @@ export default function App() {
         </div>
         <div className="controls">
           <span className="chip"><span className={`dot ${connected ? 'on' : 'off'}`} /> {connected ? 'Server online' : 'Server offline'}</span>
+          <button onClick={() => { if (confirm('Clear all tasks, logs and start a new Codex thread?')) api.reset(); }}>New session</button>
           {state.paused ? (
             <button className="primary" onClick={() => api.resume()}>▶ Resume queue</button>
           ) : (
