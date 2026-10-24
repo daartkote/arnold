@@ -7,6 +7,7 @@ import { Orchestrator } from './orchestrator.ts';
 import { FakeAdapter } from './fakeAdapter.ts';
 import { CodexAdapter } from './codexAdapter.ts';
 import { registerCustomLlm } from './customLlm.ts';
+import { EventAnalyst } from './eventAnalyst.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const PROJECT_DIR = resolve(process.env.PROJECT_DIR ?? '../demo-project');
@@ -14,11 +15,12 @@ const DATA_DIR = resolve(process.env.DATA_DIR ?? './data');
 
 const adapter = process.env.PROVIDER === 'fake' ? new FakeAdapter() : new CodexAdapter(process.env.CODEX_MODEL);
 const orchestrator = new Orchestrator(adapter, PROJECT_DIR, DATA_DIR);
+const analyst = new EventAnalyst(orchestrator);
 
 const app = Fastify({ logger: { level: 'info' } });
 await app.register(cors, { origin: true });
 await app.register(websocket);
-registerCustomLlm(app, orchestrator, process.env.CUSTOM_LLM_SECRET);
+registerCustomLlm(app, orchestrator, process.env.CUSTOM_LLM_SECRET, () => analyst.memory);
 
 const sockets = new Set<{ send(data: string): void }>();
 const broadcast = (msg: ServerMessage) => {

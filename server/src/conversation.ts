@@ -50,13 +50,14 @@ Action types:
 Chit-chat or clarifications need no actions. If the request is ambiguous, ask one short question instead of enqueueing.
 If the state lists pending notifications and the latest user message is a notification relay (starts with [notification]), announce it in one sentence truthfully.`;
 
-export async function converse(messages: ChatMessage[], state: AppState): Promise<ConversationReply> {
+export async function converse(messages: ChatMessage[], state: AppState, memory: string[] = []): Promise<ConversationReply> {
   const history = messages
     .filter(m => m.role !== 'system')
     .slice(-12)
     .map(m => `${m.role === 'user' ? 'User' : 'VoiceCode'}: ${m.content}`)
     .join('\n');
-  const prompt = `${RULES}\n\n=== CURRENT STATE ===\n${describeState(state)}\n\n=== CONVERSATION ===\n${history}\n\nRespond with the JSON object only.`;
+  const notes = memory.slice(-8).map(n => `- ${n}`).join('\n');
+  const prompt = `${RULES}\n\n=== CURRENT STATE ===\n${describeState(state)}${notes ? `\n\n=== NOTES FROM THE CODING AGENT'S WORK ===\n${notes}` : ''}\n\n=== CONVERSATION ===\n${history}\n\nRespond with the JSON object only.`;
   const { text, ms } = await gemma(prompt, { json: true, maxTokens: 400 });
   const parsed = parseJsonObject<Partial<ConversationReply>>(text);
   if (!parsed || typeof parsed.speech !== 'string') {

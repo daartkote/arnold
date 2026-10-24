@@ -36,7 +36,7 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
   return notes;
 }
 
-export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrator, secret: string | undefined) {
+export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrator, secret: string | undefined, memory: () => string[]) {
   app.post<{ Body: ChatRequest }>('/v1/chat/completions', async (req, reply) => {
     if (secret && req.headers['x-voicecode-secret'] !== secret && req.headers.authorization !== `Bearer ${secret}`) {
       return reply.code(401).send({ error: 'unauthorized' });
@@ -47,7 +47,7 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
 
     let speech: string;
     try {
-      const result = await converse(body.messages ?? [], orchestrator.getState());
+      const result = await converse(body.messages ?? [], orchestrator.getState(), memory());
       speech = result.speech;
       const notes = await applyActions(result.actions, orchestrator);
       if (notes.length) app.log.info({ notes }, 'actions applied');
