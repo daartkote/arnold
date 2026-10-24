@@ -16,7 +16,7 @@ export type Action =
 
 export interface Analysis {
   complete: boolean;
-  intent: 'task' | 'question_about_code' | 'status' | 'control' | 'answer' | 'chitchat' | 'unclear';
+  intent: 'task' | 'question_about_code' | 'status' | 'control' | 'answer' | 'confirm' | 'reject' | 'chitchat' | 'unclear';
   understood: string;
   gaps: string[];
   confidence: number;
@@ -59,7 +59,7 @@ function describeState(state: AppState): string {
   const lines = [
     `Provider: ${state.provider}. Queue ${state.paused ? 'PAUSED' : 'running'}.`,
     state.fragment ? `UNFINISHED UTTERANCE from the user ${Math.round((Date.now() - state.fragment.at) / 1000)}s ago: "${state.fragment.text}". If the latest message continues it, combine them into one request.` : '',
-    state.proposal ? `PROPOSED TASK AWAITING THE USER'S CONFIRMATION: "${state.proposal.text}". If the user confirms (yes, go, start, do it, correct) → confirm_task. If the user declines → reject_task. If the user changes or adds details → enqueue_task with the merged text (it becomes the new proposal) and restate it.` : '',
+    state.proposal ? `PROPOSED TASK AWAITING THE USER'S CONFIRMATION: "${state.proposal.text}". Agreement in any wording → analysis.intent "confirm" and action confirm_task, speech "Starting now." Declining → intent "reject" and reject_task. Changes or added details → enqueue_task with the merged text (it becomes the new proposal) and restate it. Never re-propose the same text after an agreement.` : '',
     waiting && !active ? `THE CODING AGENT IS WAITING FOR THE USER'S ANSWER to this question: "${waiting.question}" (about the task: ${waiting.text.split('\n')[0]}). If the user's latest message answers it, emit enqueue_task with text "Answer to your question: <the user's answer>. Continue the task." The speech must be a short confirmation in your own words (e.g. "Separate input it is, continuing."), never the task text itself. If the user asks what is going on, repeat the question.` : '',
     unannounced.length ? `FINISHED BUT NOT YET TOLD TO THE USER (you MUST report these first, with the concrete details):\n${unannounced.map(t => `  - ${describeTask(t)}`).join('\n')}` : '',
     active ? `Active task [${active.id}] (${active.status}, started ${Math.round((Date.now() - (active.startedAt ?? Date.now())) / 1000)}s ago): ${active.text}\nLive activity from Codex (newest last):\n${liveActivity(state)}` : 'No active task.',
@@ -78,9 +78,10 @@ Ground everything in the state below. About the agent's work: if Codex has not r
 When asked what is happening, narrate the live activity: what Codex just said it is doing, which files it edited, what command is running and whether it passed.
 
 You respond ONLY with one JSON object, fields in this order:
-{"analysis": {"complete": boolean, "intent": "task"|"question_about_code"|"status"|"control"|"answer"|"chitchat"|"unclear", "understood": string, "gaps": string[], "confidence": number}, "speech": string, "actions": Action[]}
+{"analysis": {"complete": boolean, "intent": "task"|"question_about_code"|"status"|"control"|"answer"|"confirm"|"reject"|"chitchat"|"unclear", "understood": string, "gaps": string[], "confidence": number}, "speech": string, "actions": Action[]}
 Fill "analysis" FIRST and derive speech and actions from it:
 - complete: is the latest user utterance a finished thought? Speech recognition often cuts sentences; "add tags and" or "make the list" are not complete.
+- intent: "confirm" when a proposed task is awaiting confirmation and the user agrees in any wording (yes, go, do it, sounds good, let's try…); "reject" when they decline or want to drop it. Use these only while a proposal is pending.
 - understood: one line, what the user wants, in your words.
 - gaps: decisions ONLY THE USER can make: behaviour, UX placement, what happens to existing data, scope. Never facts about the codebase ("where is the header", "which file", "which component", "what framework"): the coding agent reads the code and finds those itself. Empty if none, or if the user said "you decide".
 - confidence: 0 to 1 that you understood correctly.
