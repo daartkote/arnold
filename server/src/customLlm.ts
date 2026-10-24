@@ -71,9 +71,15 @@ export async function applyActions(actions: Action[], orchestrator: Orchestrator
         if (id) notes.push(orchestrator.cancelQueued(id) ? `cancelled ${id}` : `not queued ${id}`);
         break;
       }
-      case 'research_project':
-        if (a.question?.trim()) { void orchestrator.research(a.question.trim()); notes.push('research started'); }
+      case 'research_project': {
+        const q = a.question?.trim();
+        if (!q) break;
+        const recentResearch = orchestrator.getState().research.find(r => (r.status === 'running' || Date.now() - r.createdAt < 60000) && similar(r.question, q));
+        if (recentResearch) { notes.push(`research already ${recentResearch.status} for a similar question`); break; }
+        void orchestrator.research(q);
+        notes.push('research started');
         break;
+      }
       case 'stop':
         await orchestrator.stop(); notes.push('stopped');
         break;
@@ -111,7 +117,7 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
     app.log.info({ lastUser: lastUser.slice(0, 120) }, 'custom llm request');
 
     const key = recentKey(lastUser);
-    const prior = key ? recent.get(key) : undefined;
+    const prior = key ? (recent.get(key) ?? [...recent.entries()].find(([k, v]) => Date.now() - v.at < REQUEST_DEDUP_MS && similar(k, key))?.[1]) : undefined;
     if (prior && Date.now() - prior.at < REQUEST_DEDUP_MS) {
       app.log.info('repeated request, reusing the answer');
       const speech = prior.promise ? await prior.promise : prior.speech;
