@@ -15,7 +15,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); }
 button, input { font: inherit; }
-.shell { max-width: 1200px; margin: 0 auto; padding: 20px 16px; }
+.shell { max-width: 1680px; margin: 0 auto; padding: 20px 16px; }
 header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
 h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
 .muted { color: var(--muted); font-size: 13px; margin: 0; }
@@ -25,7 +25,8 @@ code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
 .dot.on { background: var(--ok); }
 .dot.off { background: var(--danger); }
-main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+main { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 16px; }
+@media (max-width: 1200px) { main { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
 .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .row { display: flex; gap: 8px; }
@@ -84,3 +85,16 @@ button.ghost { background: transparent; border-color: transparent; color: var(--
 .pill.who-codex_prompt { border-color: var(--ok); color: var(--ok); }
 .pill.who-notification { border-color: var(--warn); color: var(--warn); }
 .card.log .label { margin-bottom: 8px; }
+
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 44vh; overflow: auto; }
+.steps li { padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; opacity: 0.55; }
+.steps li.done { opacity: 0.35; }
+.steps li.current { opacity: 1; background: var(--panel-2); border-color: var(--accent); }
+.step-title { font-weight: 600; font-size: 13px; }
+.step-action { color: var(--warn); font-size: 13px; margin-top: 2px; }
+.step-say { font-size: 15px; margin-top: 4px; color: var(--text); }
+.steps li.current .step-say { font-size: 17px; }
+.step-expect { margin-top: 3px; }
+.preview iframe { width: 100%; height: 46vh; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+.ghost-link { color: var(--muted); font-size: 13px; text-decoration: none; padding: 4px 8px; }
+.ghost-link:hover { color: var(--accent); }

@@ -42,7 +42,7 @@ app.get('/ws', { websocket: true }, socket => {
 
 app.get('/api/state', async () => orchestrator.getState());
 
-app.get('/api/config', async () => ({ agentId: process.env.ELEVENLABS_AGENT_ID ?? null }));
+app.get('/api/config', async () => ({ agentId: process.env.ELEVENLABS_AGENT_ID ?? null, previewUrl: process.env.PREVIEW_URL ?? 'http://localhost:5174' }));
 
 app.post<{ Body: { text: string; source?: 'ui' | 'voice' } }>('/api/tasks', async (req, reply) => {
   const text = req.body?.text?.trim();

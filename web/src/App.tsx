@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import VoicePanel from './VoicePanel';
 import ConversationLog from './ConversationLog';
+import DemoScript from './DemoScript';
+import Preview from './Preview';
 import type { Task } from '../../shared/types';
 import { api, useAppState } from './useAppState';
 
@@ -23,6 +25,7 @@ export default function App() {
   const [text, setText] = useState('');
   const [question, setQuestion] = useState('');
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (agentId) return;
@@ -30,7 +33,7 @@ export default function App() {
     const load = () =>
       fetch('/api/config')
         .then(r => r.json())
-        .then(c => { if (!cancelled && c.agentId) setAgentId(c.agentId); else if (!cancelled) setTimeout(load, 1500); })
+        .then(c => { if (cancelled) return; setPreviewUrl(c.previewUrl ?? null); if (c.agentId) setAgentId(c.agentId); else setTimeout(load, 1500); })
         .catch(() => { if (!cancelled) setTimeout(load, 1500); });
     load();
     return () => { cancelled = true; };
@@ -42,6 +45,7 @@ export default function App() {
   const queued = state.tasks.filter(t => t.status === 'queued');
   const history = state.tasks.filter(t => !['queued', 'running', 'cancelling'].includes(t.status)).slice(-8).reverse();
   const canStop = Boolean(active) || !state.paused;
+  const finishedCount = state.tasks.filter(t => t.finishedAt).length;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +82,11 @@ export default function App() {
       </header>
 
       <main>
+        <section className="col">
+          <DemoScript />
+          <Preview url={previewUrl} reloadKey={finishedCount} />
+        </section>
+
         <section className="col">
           <form onSubmit={submit} className="row">
             <input value={text} onChange={e => setText(e.target.value)} placeholder="Type a coding task or just say it…" />
