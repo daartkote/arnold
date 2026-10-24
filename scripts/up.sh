@@ -10,10 +10,10 @@ pkill -f 'vite' 2>/dev/null || true
 pkill -f 'cloudflared tunnel' 2>/dev/null || true
 sleep 1
 
-echo "server…";   (npx tsx --env-file=.env server/src/index.ts > $LOG/vc-server.log 2>&1 &)
-echo "web…";      (cd web && npx vite > $LOG/vc-web.log 2>&1 &)
-echo "demo app…"; (cd "$DEMO" && npx vite --port 5174 --strictPort > $LOG/vc-demo.log 2>&1 &)
-echo "tunnel…";   (cloudflared tunnel --url http://localhost:3000 > $LOG/vc-tunnel.log 2>&1 &)
+echo "server…";   (nohup npx tsx --env-file=.env server/src/index.ts > $LOG/vc-server.log 2>&1 &)
+echo "web…";      (cd web && nohup npx vite > $LOG/vc-web.log 2>&1 &)
+echo "demo app…"; (cd "$DEMO" && nohup npx vite --port 5174 --strictPort > $LOG/vc-demo.log 2>&1 &)
+echo "tunnel…";   (nohup cloudflared tunnel --url http://localhost:3000 > $LOG/vc-tunnel.log 2>&1 &)
 
 until grep -qo 'https://[a-z0-9-]*\.trycloudflare\.com' $LOG/vc-tunnel.log; do sleep 1; done
 until curl -s -o /dev/null localhost:3000/api/state; do sleep 1; done
