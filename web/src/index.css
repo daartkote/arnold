@@ -18,7 +18,7 @@ button, input { font: inherit; }
 .muted { color: var(--muted); font-size: 13px; margin: 0; }
 .error { color: #7a5313; background: var(--amber-soft); border: 1px solid #f3dfb8; padding: 10px 12px; border-radius: 12px; font-size: 13px; margin: 10px 0 0; }
 
-.shell { max-width: 1760px; margin: 0 auto; padding: 24px 28px 40px; }
+.shell { max-width: 1360px; margin: 0 auto; padding: 24px 28px 40px; }
 header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; gap: 16px; }
 .brand { display: flex; align-items: center; gap: 14px; }
 .logo { width: 40px; height: 40px; border-radius: 12px; background: var(--text); display: grid; place-items: center; flex-shrink: 0; }
@@ -45,12 +45,8 @@ button.ghost:hover { color: var(--text); }
 .ghost-link { color: var(--muted); font-size: 12px; font-weight: 600; text-decoration: none; padding: 4px 8px; }
 .ghost-link:hover { color: var(--accent); }
 
-main { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 20px; align-items: start; }
-@media (max-width: 1280px) {
-  main { grid-template-columns: 1fr 1fr; }
-  .col.aux { grid-column: 1 / -1; order: 2; display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
-}
-@media (max-width: 960px) { main { grid-template-columns: 1fr; } .col.aux { grid-template-columns: 1fr; } .shell { padding: 16px; } }
+main { display: grid; grid-template-columns: 1fr 1.15fr; gap: 20px; align-items: start; }
+@media (max-width: 960px) { main { grid-template-columns: 1fr; } .shell { padding: 16px; } }
 .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }

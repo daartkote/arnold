@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import VoicePanel from './VoicePanel';
 import ConversationLog from './ConversationLog';
-import DemoScript from './DemoScript';
-import Preview from './Preview';
 import type { Task } from '../../shared/types';
 import { api, useAppState } from './useAppState';
 
@@ -24,7 +22,6 @@ function fmt(ts: number) {
 export default function App() {
   const { state, connected } = useAppState();
   const [agentId, setAgentId] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (agentId) return;
@@ -32,7 +29,7 @@ export default function App() {
     const load = () =>
       fetch('/api/config')
         .then(r => r.json())
-        .then(c => { if (cancelled) return; setPreviewUrl(c.previewUrl ?? null); if (c.agentId) setAgentId(c.agentId); else setTimeout(load, 1500); })
+        .then(c => { if (cancelled) return; if (c.agentId) setAgentId(c.agentId); else setTimeout(load, 1500); })
         .catch(() => { if (!cancelled) setTimeout(load, 1500); });
     load();
     return () => { cancelled = true; };
@@ -44,7 +41,6 @@ export default function App() {
   const queued = state.tasks.filter(t => t.status === 'queued');
   const history = state.tasks.filter(t => !['queued', 'running', 'cancelling'].includes(t.status)).slice(-8).reverse();
   const canStop = Boolean(active) || !state.paused;
-  const finishedCount = state.tasks.filter(t => t.finishedAt).length;
 
   return (
     <div className="shell">
@@ -71,11 +67,6 @@ export default function App() {
       </header>
 
       <main>
-        <section className="col aux">
-          <DemoScript />
-          <Preview url={previewUrl} reloadKey={finishedCount} />
-        </section>
-
         <section className="col">
           <div className="card">
             <div className="label">Active task {active ? <span className={`status ${active.status}`}>{statusLabel[active.status]}</span> : <span className="status">{state.paused ? 'Paused' : 'Idle'}</span>}</div>
