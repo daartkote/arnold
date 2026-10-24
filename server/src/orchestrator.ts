@@ -95,7 +95,9 @@ export class Orchestrator extends EventEmitter {
     this.log.append({ kind: 'task', task });
     this.transcript('codex_prompt', text, { taskId: task.id, source });
     this.publish();
-    void this.pump();
+    const delay = source === 'voice' ? Number(process.env.TASK_START_DELAY_MS ?? 6000) : 0;
+    if (delay > 0) setTimeout(() => void this.pump(), delay);
+    else void this.pump();
     return task;
   }
 
@@ -145,8 +147,13 @@ export class Orchestrator extends EventEmitter {
 
   private async pump() {
     if (this.state.paused || this.state.activeTaskId) return;
-    const next = this.queuedTasks()[0];
-    if (!next) return;
+    const delay = Number(process.env.TASK_START_DELAY_MS ?? 6000);
+    const next = this.queuedTasks().find(t => t.source !== 'voice' || Date.now() - t.createdAt >= delay);
+    if (!next) {
+      const soon = this.queuedTasks()[0];
+      if (soon) setTimeout(() => void this.pump(), Math.max(200, delay - (Date.now() - soon.createdAt)));
+      return;
+    }
     this.state.activeTaskId = next.id;
     next.status = 'running';
     next.startedAt = Date.now();
@@ -162,10 +169,10 @@ export class Orchestrator extends EventEmitter {
       next.commandsRun = result.commandsRun;
       next.commandsFailed = result.commandsFailed;
       next.files = result.files;
+      const verification = verificationFor(this.state.events.filter(e => e.taskId === next.id));
       next.verification = verification;
       const wasCancelling = (next.status as Task['status']) === 'cancelling';
       const asksQuestion = result.completed && result.files.length === 0 && /\?\s*$/.test(result.summary.trim());
-      const verification = verificationFor(this.state.events.filter(e => e.taskId === next.id));
       if (wasCancelling || !result.completed) next.status = 'interrupted';
       else if (asksQuestion) { next.status = 'waiting'; next.question = result.summary.trim(); }
       else next.status = verification.build === 'failed' || verification.tests === 'failed' ? 'failed' : 'done';
