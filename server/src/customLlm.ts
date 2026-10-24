@@ -65,7 +65,11 @@ export function registerCustomLlm(app: FastifyInstance, orchestrator: Orchestrat
     app.log.info({ lastUser: lastUser.slice(0, 120) }, 'custom llm request');
 
     let speech: string;
-    try {
+    const silentTurn = !lastUser.replace(/[.\s…]/g, '').length;
+    if (silentTurn) {
+      app.log.info('silent turn, no reply');
+      speech = '';
+    } else try {
       const result = await converse(body.messages ?? [], orchestrator.getState(), memory());
       speech = result.speech;
       const hasSideEffects = result.actions.some(a => a.type !== 'get_status');
